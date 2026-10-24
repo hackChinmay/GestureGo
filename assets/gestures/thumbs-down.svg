@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <rect width="200" height="200" rx="16" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="2"/>
+  <g stroke="#0F172A" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" fill="#FDE68A">
+    <!-- Hand Silhouette: Vertical thumb pointing DOWN with inverted horizontal fist -->
+    <path d="M 68 15 
+             L 65 60 
+             C 62 80 62 95 62 115 
+             C 62 140 76 165 88 165 
+             C 98 165 100 150 100 125 
+             L 100 100 
+             C 106 105 125 105 138 102 
+             C 148 100 152 90 148 84 
+             C 154 82 156 72 150 66 
+             C 154 64 156 54 148 48 
+             C 152 46 152 36 142 32 
+             C 126 26 105 26 98 26 
+             L 98 15 
+             Z" />
+    <!-- Curled fingers along front of inverted fist -->
+    <path d="M 100 85 C 112 85 146 85 146 85" fill="none" stroke="#0F172A" stroke-width="3"/>
+    <path d="M 98 67 C 112 67 148 67 148 67" fill="none" stroke="#0F172A" stroke-width="3"/>
+    <path d="M 98 49 C 112 49 146 49 146 49" fill="none" stroke="#0F172A" stroke-width="3"/>
+    <!-- Thumb joint crease -->
+    <path d="M 65 128 C 78 126 96 126 98 128" fill="none" stroke="#D97706" stroke-width="2"/>
+    <!-- Downward cancel hint -->
+    <path d="M 125 145 L 125 165 M 118 158 L 125 165 L 132 158" fill="none" stroke="#DC2626" stroke-width="2.5"/>
+  </g>
+</svg>

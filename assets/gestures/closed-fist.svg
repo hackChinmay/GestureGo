@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <rect width="200" height="200" rx="16" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="2"/>
+  <g stroke="#0F172A" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" fill="#FDE68A">
+    <!-- Hand Silhouette: Closed Fist with folded thumb -->
+    <path d="M 75 185 
+             L 70 148 
+             C 58 142 52 130 52 115 
+             C 52 98 64 92 74 95 
+             C 74 85 86 80 96 82 
+             C 100 80 114 80 118 84 
+             C 124 82 138 84 142 90 
+             C 148 94 152 104 152 118 
+             C 152 135 146 156 138 168 
+             C 130 180 125 185 120 185 
+             Z" />
+    <!-- 4 Curled finger lobes at top of fist -->
+    <path d="M 72 95 C 72 82 92 82 92 98 L 92 115" fill="#FDE68A" stroke="#0F172A" stroke-width="3"/>
+    <path d="M 92 98 C 92 82 112 82 112 98 L 112 118" fill="#FDE68A" stroke="#0F172A" stroke-width="3"/>
+    <path d="M 112 98 C 112 84 132 84 132 100 L 132 120" fill="#FDE68A" stroke="#0F172A" stroke-width="3"/>
+    <path d="M 132 100 C 132 88 150 90 150 106 L 150 125" fill="#FDE68A" stroke="#0F172A" stroke-width="3"/>
+    <!-- Horizontal Thumb resting across knuckles -->
+    <path d="M 54 122 C 54 105 70 102 88 112 C 104 120 122 122 132 130 C 136 135 130 144 120 145 C 98 147 78 145 68 138 Z" fill="#FDE68A" stroke="#0F172A" stroke-width="3.5"/>
+    <!-- Knuckle crease accents -->
+    <path d="M 78 126 C 90 132 106 132 118 128" fill="none" stroke="#D97706" stroke-width="1.8"/>
+  </g>
+</svg>
