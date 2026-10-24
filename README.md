@@ -2,7 +2,7 @@
 
 > A touchless campus information kiosk driven by confidence-aware computer vision, temporal stability checks, and one-shot finite state machine execution.
 
-[![Unit Tests](https://img.shields.io/badge/Unit%20Tests-18%2F18%20Passing-22C55E?logo=checkmarx&logoColor=white)](tests/)
+[![Unit Tests](https://img.shields.io/badge/Unit%20Tests-28%2F28%20Passing-22C55E?logo=checkmarx&logoColor=white)](tests/)
 [![Python](https://img.shields.io/badge/Python-3.10%20%7C%203.11-3776AB?logo=python&logoColor=white)](requirements.txt)
 [![Streamlit](https://img.shields.io/badge/Streamlit-1.35+-FF4B4B?logo=streamlit&logoColor=white)](app.py)
 [![OpenCV](https://img.shields.io/badge/OpenCV-4.9+-5C3EE8?logo=opencv&logoColor=white)](requirements.txt)
@@ -514,7 +514,7 @@ Run the test suite using Python's standard `unittest` runner:
 python -m unittest discover -s tests -v
 ```
 
-### Verified Test Suite (18/18 Passing):
+### Verified Python Unit Test Suite (28/28 Passing):
 
 ```
 test_classifier_fallback_on_missing_model (test_action_mapping) ... ok
@@ -535,12 +535,38 @@ test_no_hand_handling (test_controller) ........................ ok
 test_rearming_after_sustained_neutral_release (test_controller)  ok
 test_temporal_stability_and_one_shot_execution (test_controller) ok
 test_unknown_gesture_handling (test_controller) ................ ok
+test_end_of_list_boundary_guard (test_schedule_navigation) ..... ok
+test_initial_schedule_selection (test_schedule_navigation) ..... ok
+test_invalid_selection_index_fallback (test_schedule_navigation) ok
+test_one_shot_anti_repeat_on_held_pointing_down (test_schedule)  ok
+test_pointing_up_navigates_to_next_page (test_schedule) ........ ok
+test_rearming_after_neutral_allows_second_step (test_schedule) . ok
+test_scroll_down_advances_selection_by_one (test_schedule) ..... ok
+test_scroll_down_on_other_page_does_not_change_route (test) .... ok
+test_sequential_advancement_through_all_events (test_schedule) . ok
+test_thumbs_up_confirms_active_selection (test_schedule) ....... ok
 
 ----------------------------------------------------------------------
-Ran 18 tests in 0.001s
+Ran 28 tests in 0.001s
 
 OK
 ```
+
+### Verified TypeScript / Web Client Test Suite (12/12 Scenarios Passing):
+
+```bash
+npx tsx --test tests/test_schedule_interaction.test.mjs
+```
+- Opening Schedule selects valid initial event (`s1`).
+- `POINTING_DOWN` advances selected event by exactly one.
+- Newly selected event becomes visible and synchronizes with container scroll.
+- Repeated `POINTING_DOWN` gestures advance selection sequentially (`s1` ➔ `s7`).
+- Holding `POINTING_DOWN` does not skip multiple events (One-Shot FSM).
+- Final event retains selection without out-of-bounds error.
+- `THUMBS_UP` confirms/registers active selected event (e.g. `s5`), not always the first event.
+- `POINTING_UP` still navigates to next page along `PAGE_ORDER`.
+- `POINTING_DOWN` on other pages scrolls without altering route.
+- Missing or invalid event IDs resolve safely to initial fallback.
 
 ### Verified Behaviours Covered:
 - **One-Shot Execution:** Holding a gesture for consecutive frames triggers the action exactly once; subsequent frames in `LOCKED_HOLD` state are rejected.

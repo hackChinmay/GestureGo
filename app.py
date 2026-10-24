@@ -125,7 +125,16 @@ def execute_action(action: str, source: str = "gesture"):
         st.session_state.history_stack.append(next_page)
 
     elif action == "SCROLL_DOWN":
-        st.session_state.scroll_notice = f"Scrolled {st.session_state.current_page} down (65%)"
+        if st.session_state.current_page == "Schedule":
+            max_idx = len(SCHEDULE_ITEMS) - 1
+            if st.session_state.selected_schedule_index < max_idx:
+                st.session_state.selected_schedule_index += 1
+                cur_it = SCHEDULE_ITEMS[st.session_state.selected_schedule_index]
+                st.session_state.scroll_notice = f"Selected: {cur_it['title']} ({st.session_state.selected_schedule_index + 1}/{len(SCHEDULE_ITEMS)})"
+            else:
+                st.session_state.scroll_notice = f"End of schedule reached ({max_idx + 1}/{max_idx + 1} events)"
+        else:
+            st.session_state.scroll_notice = f"Scrolled {st.session_state.current_page} down (65%)"
 
     elif action == "OPEN_SCHEDULE":
         if st.session_state.current_page != "Schedule":
@@ -135,7 +144,7 @@ def execute_action(action: str, source: str = "gesture"):
     elif action in ("CONFIRM_OR_SELECT", "CONFIRM"):
         if st.session_state.current_page == "Schedule":
             item = SCHEDULE_ITEMS[st.session_state.selected_schedule_index]
-            st.session_state.confirmed_modal = f"Registered for: {item['title']} ({item['location']})"
+            st.session_state.confirmed_modal = f"Pass registered for: {item['title']} ({item['location']}) [Demo Mode]"
         else:
             st.session_state.confirmed_modal = f"Action confirmed on {st.session_state.current_page}"
 
@@ -356,8 +365,13 @@ with col_content:
             st.markdown(f"- **{item['time']}**: {item['title']} ({item['location']})")
 
     elif cur == "Schedule":
-        for item in SCHEDULE_ITEMS:
-            st.markdown(f"**{item['time']}** — {item['title']} ({item['location']})")
+        sel_idx = st.session_state.selected_schedule_index
+        cur_it = SCHEDULE_ITEMS[sel_idx]
+        st.info(f"👉 **Selected Event ({sel_idx + 1}/{len(SCHEDULE_ITEMS)}):** {cur_it['title']} ({cur_it['time']})")
+        for idx, item in enumerate(SCHEDULE_ITEMS):
+            is_selected = idx == sel_idx
+            prefix = "👉 [SELECTED] " if is_selected else ""
+            st.markdown(f"**{prefix}{item['time']}** — {item['title']} ({item['location']})")
             st.caption(item.get("description", ""))
 
     elif cur == "Venues":

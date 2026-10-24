@@ -7,6 +7,7 @@ import {
   PageId,
   getNextPage,
   getPrevPage,
+  SCHEDULE_ITEMS,
 } from './campusData';
 import { Navbar } from './components/Navbar';
 import { ManualControls } from './components/ManualControls';
@@ -46,6 +47,12 @@ export default function App() {
   const [confirmedModal, setConfirmedModal] = useState<string | null>(null);
   const [cameraActive, setCameraActive] = useState<boolean>(false);
   const [codeExplorerOpen, setCodeExplorerOpen] = useState<boolean>(false);
+
+  // Synchronized Schedule Selection & Registration State
+  const [selectedScheduleId, setSelectedScheduleId] = useState<string>(
+    () => SCHEDULE_ITEMS[0]?.id || 's1'
+  );
+  const [registeredEventIds, setRegisteredEventIds] = useState<Set<string>>(new Set());
 
   // Scroll Container Ref for the active content viewport
   const contentScrollRef = useRef<HTMLDivElement>(null);
@@ -167,7 +174,16 @@ export default function App() {
         case 'CONFIRM_OR_SELECT':
         case 'CONFIRM': {
           if (currentPage === 'Schedule') {
-            setConfirmedModal('Session registration confirmed! Keynote pass added to your badge.');
+            const activeItem =
+              SCHEDULE_ITEMS.find((it) => it.id === selectedScheduleId) || SCHEDULE_ITEMS[0];
+            setRegisteredEventIds((prev) => {
+              const updated = new Set(prev);
+              updated.add(activeItem.id);
+              return updated;
+            });
+            setConfirmedModal(
+              `Pass registered for "${activeItem.title}" at ${activeItem.location} (${activeItem.time}) [Demonstration Mode]`
+            );
           } else {
             setConfirmedModal(`Confirmed selection on ${currentPage} section.`);
           }
@@ -195,8 +211,31 @@ export default function App() {
         }
 
         case 'SCROLL_DOWN': {
-          // Dedicated scroll action without changing page or menus
-          handleScrollDown();
+          if (currentPage === 'Schedule') {
+            const curIdx = SCHEDULE_ITEMS.findIndex((it) => it.id === selectedScheduleId);
+            const validIdx = curIdx >= 0 ? curIdx : 0;
+            if (validIdx < SCHEDULE_ITEMS.length - 1) {
+              const nextItem = SCHEDULE_ITEMS[validIdx + 1];
+              setSelectedScheduleId(nextItem.id);
+              setScrollToast({
+                message: `Selected: ${nextItem.title}`,
+                atBottom: validIdx + 1 === SCHEDULE_ITEMS.length - 1,
+                timestamp: Date.now(),
+              });
+            } else {
+              setScrollToast({
+                message: `End of schedule reached (${SCHEDULE_ITEMS.length}/${SCHEDULE_ITEMS.length} events)`,
+                atBottom: true,
+                timestamp: Date.now(),
+              });
+            }
+            setTimeout(() => {
+              setScrollToast((prev) => (prev && Date.now() - prev.timestamp >= 1800 ? null : prev));
+            }, 2000);
+          } else {
+            // Dedicated scroll action on other pages
+            handleScrollDown();
+          }
           break;
         }
 
@@ -218,7 +257,7 @@ export default function App() {
           break;
       }
     },
-    [currentPage, confirmedModal, handleScrollDown]
+    [currentPage, confirmedModal, handleScrollDown, selectedScheduleId]
   );
 
   const navigateDirectly = (page: PageId) => {
@@ -406,9 +445,19 @@ export default function App() {
 
               {currentPage === 'Schedule' && (
                 <ScheduleView
-                  onConfirm={(item) =>
-                    setConfirmedModal(`Registered for: ${item.title} (${item.location})`)
-                  }
+                  selectedId={selectedScheduleId}
+                  onSelectId={setSelectedScheduleId}
+                  registeredIds={registeredEventIds}
+                  onConfirm={(item) => {
+                    setRegisteredEventIds((prev) => {
+                      const updated = new Set(prev);
+                      updated.add(item.id);
+                      return updated;
+                    });
+                    setConfirmedModal(
+                      `Pass registered for "${item.title}" at ${item.location} (${item.time}) [Demonstration Mode]`
+                    );
+                  }}
                 />
               )}
 
@@ -424,13 +473,21 @@ export default function App() {
             {/* Bottom Scroll Prompt Bar */}
             <div className="pt-2 mt-2 border-t-2 border-[#17151B] flex items-center justify-between text-[11px] text-[#655E68]">
               <span className="font-mono">
-                Gesture: <strong>👇 POINTING_DOWN</strong> scrolls content container
+                {currentPage === 'Schedule' ? (
+                  <>
+                    Gesture: <strong>👇 POINTING_DOWN</strong> advances selected event &amp; scrolls
+                  </>
+                ) : (
+                  <>
+                    Gesture: <strong>👇 POINTING_DOWN</strong> scrolls content container
+                  </>
+                )}
               </span>
               <button
-                onClick={handleScrollDown}
+                onClick={() => handleAction('SCROLL_DOWN', 'manual', 'POINTING_DOWN')}
                 className="px-2 py-0.5 rounded bg-[#FFF7E8] border border-[#17151B] hover:bg-[#D8FF4F] font-bold text-[#17151B] cursor-pointer flex items-center gap-1"
               >
-                <span>Scroll Down (65%)</span>
+                <span>{currentPage === 'Schedule' ? 'Next Event (👇)' : 'Scroll Down (65%)'}</span>
                 <ArrowDown className="w-3 h-3 stroke-[2.5]" />
               </button>
             </div>

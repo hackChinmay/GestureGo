@@ -119,11 +119,12 @@ SCHEDULE_ITEMS: List[Dict[str, Any]] = [
     {
         "id": "s5",
         "time": "03:30 PM - 05:00 PM",
-        "title": "Panel: Accessibility & Safety in Public Touchless Interfaces",
+        "title": "Panel: Ergonomics & Safety in Public Touchless Kiosks",
         "speaker": "Prof. Marcus Thorne, Dr. Priyah Patel",
         "location": "Auditorium B",
         "track": "Panel",
         "status": "Upcoming",
+        "description": "Discussions on hygienic public kiosks, motor impairment ergonomics, and confidence-gated decision layers.",
     },
     {
         "id": "s6",
@@ -133,6 +134,17 @@ SCHEDULE_ITEMS: List[Dict[str, Any]] = [
         "location": "Main Auditorium (Hall A)",
         "track": "Ceremony",
         "status": "Upcoming",
+        "description": "Closing honors, hackathon champion prize distribution, and student research excellence medals.",
+    },
+    {
+        "id": "s7",
+        "time": "07:00 PM - 09:00 PM",
+        "title": "Open Robotics Maker Social & Lightning Talks",
+        "speaker": "Student Autonomous Club & Guest Engineers",
+        "location": "Innovation Hub Courtyard",
+        "track": "Social",
+        "status": "Upcoming",
+        "description": "Casual robotics demo mixer, hardware prototyping demos, and peer-to-peer student tech lightning talks.",
     },
 ]
 
