@@ -12,9 +12,11 @@ export class GestureControllerTS {
   stabilityDurationSec: number;
   requiredStableFrames: number;
   cooldownSec: number;
+  requiredNeutralFrames: number;
   actionMapping: Record<string, KioskAction>;
 
-  state: ControllerState = 'IDLE';
+  // Canonical state machine: READY -> CANDIDATE -> EXECUTED -> LOCKED_HOLD -> READY
+  state: ControllerState = 'READY';
   currentCandidate: GestureClass | null = null;
   candidateFrames: number = 0;
   candidateStartTime: number = 0;
@@ -24,7 +26,11 @@ export class GestureControllerTS {
   lastRejectionReason: RejectionReason = 'NONE';
   lastRejectionDetail: string = '';
 
-  // Counters
+  // Neutral release counter: prevents re-arming from 1-2 momentary frame dropouts
+  neutralObservationCount: number = 0;
+  neutralStartTime: number = 0;
+
+  // Diagnostics and counters
   totalFrames: number = 0;
   totalActions: number = 0;
   repeatedPreventions: number = 0;
@@ -33,16 +39,18 @@ export class GestureControllerTS {
   neutralReleases: number = 0;
 
   constructor(
-    confidenceThreshold = 0.8,
-    stabilityDurationSec = 0.4,
-    requiredStableFrames = 8,
-    cooldownSec = 0.35,
+    confidenceThreshold = 0.80,
+    stabilityDurationSec = 0.35,
+    requiredStableFrames = 7,
+    cooldownSec = 0.30,
+    requiredNeutralFrames = 3,
     actionMapping: Record<string, KioskAction> = GESTURE_TO_ACTION
   ) {
     this.confidenceThreshold = confidenceThreshold;
     this.stabilityDurationSec = stabilityDurationSec;
     this.requiredStableFrames = requiredStableFrames;
     this.cooldownSec = cooldownSec;
+    this.requiredNeutralFrames = requiredNeutralFrames;
     this.actionMapping = { ...actionMapping };
   }
 
@@ -56,11 +64,12 @@ export class GestureControllerTS {
   }
 
   reset() {
-    this.state = 'IDLE';
+    this.state = 'READY';
     this.currentCandidate = null;
     this.candidateFrames = 0;
     this.candidateStartTime = 0;
     this.lockedGesture = null;
+    this.neutralObservationCount = 0;
     this.lastRejectionReason = 'NONE';
     this.lastRejectionDetail = '';
   }
@@ -76,44 +85,51 @@ export class GestureControllerTS {
     this.lastRejectionReason = 'NONE';
     this.lastRejectionDetail = '';
 
-    // Case 1: No hand detected
+    // Condition A: Hand is neutral (NO_HAND)
     if (gesture === 'NO_HAND') {
       this.lastRejectionReason = 'NO_HAND';
-      this.lastRejectionDetail = 'No hand detected in camera frame';
-      this.handleNeutralObservation();
+      this.lastRejectionDetail = 'No hand detected in viewport';
+      this._observeNeutral(now);
       return { action: null, telemetry: this.getTelemetry(gesture, confidence, null, now) };
     }
 
-    // Case 2: Unknown gesture pose
-    if (gesture === 'UNKNOWN') {
+    // Condition B: Hand pose is UNKNOWN or UNCERTAIN
+    if (gesture === 'UNKNOWN' || gesture === 'UNCERTAIN') {
       this.lastRejectionReason = 'UNRECOGNIZED_POSE';
-      this.lastRejectionDetail = 'Hand visible but pose not recognized in target set';
-      this.handleNeutralObservation();
+      this.lastRejectionDetail = 'Hand visible but pose not recognized in target gesture classes';
+      this._observeNeutral(now);
       return { action: null, telemetry: this.getTelemetry(gesture, confidence, null, now) };
     }
 
-    // Case 3: Confidence below threshold
+    // Valid hand pose seen -> reset neutral observation counter
+    this.neutralObservationCount = 0;
+
+    // Condition C: Confidence below configured threshold
     if (confidence < this.confidenceThreshold) {
       this.lowConfidenceRejections += 1;
       this.lastRejectionReason = 'BELOW_CONFIDENCE';
       this.lastRejectionDetail = `Confidence ${confidence.toFixed(2)} is below threshold ${this.confidenceThreshold.toFixed(2)}`;
+
+      // Invalidate in-progress candidate if confidence drops
       if (this.state === 'CANDIDATE') {
-        this.state = 'IDLE';
+        this.state = 'READY';
         this.currentCandidate = null;
         this.candidateFrames = 0;
       }
       return { action: null, telemetry: this.getTelemetry(gesture, confidence, null, now) };
     }
 
-    // Case 4: Held gesture in LOCKED state (prevent repeated triggers)
-    if (this.state === 'LOCKED') {
+    // Condition D: One-Shot LOCKED_HOLD state
+    // Holding the gesture must NEVER trigger repeated actions!
+    if (this.state === 'LOCKED_HOLD' || this.state === 'LOCKED') {
       if (gesture === this.lockedGesture) {
         this.repeatedPreventions += 1;
         this.lastRejectionReason = 'LOCKED_HOLD';
         this.lastRejectionDetail = `Gesture '${gesture}' is held in LOCKED state. Release hand to neutral to re-arm.`;
         return { action: null, telemetry: this.getTelemetry(gesture, confidence, null, now) };
       } else {
-        // User transitioned to a different high-confidence gesture while locked
+        // User switched to a different high-confidence gesture while locked
+        // Start candidate evaluation for the new gesture
         this.state = 'CANDIDATE';
         this.currentCandidate = gesture;
         this.candidateFrames = 1;
@@ -125,7 +141,7 @@ export class GestureControllerTS {
       }
     }
 
-    // Case 5: Cooldown check for newly transitioning gestures
+    // Condition E: Cooldown period check
     const timeSinceLastAction = now - this.lastActionTimestamp;
     if (this.lastActionTimestamp > 0 && timeSinceLastAction < this.cooldownSec) {
       this.lastRejectionReason = 'COOLDOWN_ACTIVE';
@@ -133,25 +149,26 @@ export class GestureControllerTS {
       return { action: null, telemetry: this.getTelemetry(gesture, confidence, null, now) };
     }
 
-    // Case 6: State Machine Dispatch
-    if (this.state === 'IDLE' || this.state === 'REARMED') {
+    // Condition F: State Machine Candidate Accumulation
+    if (this.state === 'READY' || this.state === 'IDLE' || this.state === 'REARMED') {
       this.state = 'CANDIDATE';
       this.currentCandidate = gesture;
       this.candidateFrames = 1;
       this.candidateStartTime = now;
       this.lastRejectionReason = 'TEMPORAL_INSTABILITY';
-      this.lastRejectionDetail = `Candidate '${gesture}' initiated (1/${this.requiredStableFrames} frames)`;
+      this.lastRejectionDetail = `Candidate '${gesture}' initiated (frame 1/${this.requiredStableFrames})`;
       return { action: null, telemetry: this.getTelemetry(gesture, confidence, null, now) };
     } else if (this.state === 'CANDIDATE') {
       if (gesture === this.currentCandidate) {
         this.candidateFrames += 1;
         const elapsed = now - this.candidateStartTime;
 
+        // Check if temporal stability and frame threshold are met
         if (
           this.candidateFrames >= this.requiredStableFrames &&
           elapsed >= this.stabilityDurationSec
         ) {
-          // Trigger action EXACTLY ONCE!
+          // EXECUTE ACTION EXACTLY ONCE!
           const mapped = this.actionMapping[gesture];
           if (mapped) {
             actionTriggered = mapped;
@@ -159,13 +176,13 @@ export class GestureControllerTS {
             this.lastAction = mapped;
             this.lastActionTimestamp = now;
 
-            // Immediately lock repeated execution!
-            this.state = 'LOCKED';
+            // Transition to LOCKED_HOLD immediately to prevent duplicate actions
+            this.state = 'LOCKED_HOLD';
             this.lockedGesture = gesture;
             this.currentCandidate = null;
             this.candidateFrames = 0;
           } else {
-            this.state = 'IDLE';
+            this.state = 'READY';
             this.currentCandidate = null;
             this.candidateFrames = 0;
           }
@@ -175,13 +192,13 @@ export class GestureControllerTS {
           this.lastRejectionDetail = `Holding '${gesture}': frame ${this.candidateFrames}/${this.requiredStableFrames}, ${elapsed.toFixed(2)}s/${this.stabilityDurationSec.toFixed(2)}s required`;
         }
       } else {
-        // Flickered to different gesture
+        // Hand pose changed during candidate accumulation: reset candidate
         this.currentCandidate = gesture;
         this.candidateFrames = 1;
         this.candidateStartTime = now;
         this.unstableRejections += 1;
         this.lastRejectionReason = 'TEMPORAL_INSTABILITY';
-        this.lastRejectionDetail = `Gesture changed to '${gesture}', resetting stability counter`;
+        this.lastRejectionDetail = `Gesture changed to '${gesture}', resetting candidate counter`;
       }
     }
 
@@ -191,17 +208,27 @@ export class GestureControllerTS {
     };
   }
 
-  private handleNeutralObservation() {
-    if (this.state === 'LOCKED') {
-      this.state = 'REARMED';
-      this.lockedGesture = null;
-      this.currentCandidate = null;
-      this.candidateFrames = 0;
-      this.neutralReleases += 1;
+  /**
+   * Observe neutral hand state (NO_HAND or UNKNOWN).
+   * Requires sustained neutral observation before re-arming to prevent false re-arm from 1-frame glitches.
+   */
+  private _observeNeutral(now: number) {
+    if (this.state === 'LOCKED_HOLD' || this.state === 'LOCKED') {
+      this.neutralObservationCount += 1;
+      if (this.neutralObservationCount >= this.requiredNeutralFrames) {
+        // Sustained neutral observed -> safely re-arm
+        this.state = 'READY';
+        this.lockedGesture = null;
+        this.currentCandidate = null;
+        this.candidateFrames = 0;
+        this.neutralObservationCount = 0;
+        this.neutralReleases += 1;
+      }
     } else if (this.state === 'CANDIDATE') {
-      this.state = 'IDLE';
+      this.state = 'READY';
       this.currentCandidate = null;
       this.candidateFrames = 0;
+      this.neutralObservationCount = 0;
     }
   }
 
@@ -219,7 +246,7 @@ export class GestureControllerTS {
           ? Math.min(1.0, (now - this.candidateStartTime) / this.stabilityDurationSec)
           : 1.0;
       stabilityPct = Math.round(Math.min(frameRatio, timeRatio) * 100);
-    } else if (this.state === 'LOCKED') {
+    } else if (this.state === 'LOCKED_HOLD' || this.state === 'LOCKED') {
       stabilityPct = 100;
     }
 

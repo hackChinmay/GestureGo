@@ -2,13 +2,13 @@
 gesture_controller.py - Confidence-Aware One-Shot Gesture State Machine.
 
 Implements the 5-state lifecycle for touchless kiosk interaction:
-    IDLE -> CANDIDATE -> CONFIRMED -> LOCKED -> REARMED
+    READY -> CANDIDATE -> EXECUTED -> LOCKED_HOLD -> READY
 
 Guarantees:
 - One-shot action execution: holding a gesture never repeats actions.
 - Confidence-aware: drops predictions below configurable threshold.
 - Temporal stability: gesture must be held consistently for stable_frames.
-- Neutral release requirement: user must release/return to neutral before re-arming.
+- Multi-frame neutral release guard: requires sustained neutral pose before re-arming.
 - Explains explicit rejection reason on every frame.
 """
 
@@ -17,11 +17,15 @@ import time
 from typing import Optional, Dict, Any, Tuple
 
 class ControllerState(str, Enum):
-    IDLE = "IDLE"
+    READY = "READY"
     CANDIDATE = "CANDIDATE"
-    CONFIRMED = "CONFIRMED"
-    LOCKED = "LOCKED"
-    REARMED = "REARMED"
+    EXECUTED = "EXECUTED"
+    LOCKED_HOLD = "LOCKED_HOLD"
+    # Backward compatible aliases
+    IDLE = "READY"
+    CONFIRMED = "EXECUTED"
+    LOCKED = "LOCKED_HOLD"
+    REARMED = "READY"
 
 class RejectionReason(str, Enum):
     NONE = "NONE"
@@ -34,16 +38,17 @@ class RejectionReason(str, Enum):
 
 # Canonical Gesture to Action Mapping for GestureGo
 GESTURE_TO_ACTION = {
-    "OPEN_PALM": "GO_HOME",
-    "POINTING_UP": "NEXT_ITEM",
+    "OPEN_PALM": "HOME",
+    "POINTING_UP": "NEXT_PAGE",
+    "POINTING_DOWN": "SCROLL_DOWN",
     "VICTORY": "OPEN_SCHEDULE",
-    "THUMBS_UP": "CONFIRM",
-    "CLOSED_FIST": "GO_BACK",
+    "THUMBS_UP": "CONFIRM_OR_SELECT",
+    "CLOSED_FIST": "BACK",
     "THUMBS_DOWN": "CANCEL",
     "I_LOVE_YOU": "OPEN_HELP",
 }
 
-NEUTRAL_GESTURES = {"NO_HAND", "UNKNOWN", "NEUTRAL"}
+NEUTRAL_GESTURES = {"NO_HAND", "UNKNOWN", "UNCERTAIN", "NEUTRAL"}
 
 class GestureController:
     """
@@ -54,19 +59,21 @@ class GestureController:
     def __init__(
         self,
         confidence_threshold: float = 0.80,
-        stability_duration_sec: float = 0.40,
-        required_stable_frames: int = 8,
-        cooldown_sec: float = 0.35,
+        stability_duration_sec: float = 0.35,
+        required_stable_frames: int = 7,
+        cooldown_sec: float = 0.30,
+        required_neutral_frames: int = 3,
         action_mapping: Optional[Dict[str, str]] = None,
     ):
         self.confidence_threshold = float(confidence_threshold)
         self.stability_duration_sec = float(stability_duration_sec)
         self.required_stable_frames = int(required_stable_frames)
         self.cooldown_sec = float(cooldown_sec)
+        self.required_neutral_frames = int(required_neutral_frames)
         self.action_mapping = dict(action_mapping or GESTURE_TO_ACTION)
 
         # State machine variables
-        self.state = ControllerState.IDLE
+        self.state = ControllerState.READY
         self.current_candidate: Optional[str] = None
         self.candidate_frames: int = 0
         self.candidate_start_time: float = 0.0
@@ -76,7 +83,10 @@ class GestureController:
         self.last_rejection_reason = RejectionReason.NONE
         self.last_rejection_detail: str = ""
 
-        # Diagnostics & counters (honest, un-fabricated metrics)
+        # Multi-frame neutral release counter
+        self.neutral_frames = 0
+
+        # Diagnostics & counters
         self.total_frames_processed = 0
         self.total_actions_triggered = 0
         self.repeated_action_preventions = 0
@@ -85,21 +95,19 @@ class GestureController:
         self.neutral_releases_observed = 0
 
     def set_confidence_threshold(self, threshold: float) -> None:
-        """Update confidence threshold (e.g. via UI slider)."""
         self.confidence_threshold = max(0.0, min(1.0, float(threshold)))
 
     def set_stability_requirements(self, duration_sec: float, frames: int) -> None:
-        """Update stability temporal parameters."""
         self.stability_duration_sec = max(0.05, float(duration_sec))
         self.required_stable_frames = max(1, int(frames))
 
     def reset(self) -> None:
-        """Reset state machine to initial pristine state."""
-        self.state = ControllerState.IDLE
+        self.state = ControllerState.READY
         self.current_candidate = None
         self.candidate_frames = 0
         self.candidate_start_time = 0.0
         self.locked_gesture = None
+        self.neutral_frames = 0
         self.last_rejection_reason = RejectionReason.NONE
         self.last_rejection_detail = ""
 
@@ -109,62 +117,53 @@ class GestureController:
         confidence: float,
         timestamp: Optional[float] = None,
     ) -> Tuple[Optional[str], Dict[str, Any]]:
-        """
-        Process a single prediction frame from computer vision.
-
-        Args:
-            gesture: The detected gesture name (e.g. 'OPEN_PALM', 'UNKNOWN', 'NO_HAND')
-            confidence: The classifier score between 0.0 and 1.0
-            timestamp: Optional epoch seconds for testing/deterministic playback
-
-        Returns:
-            (action_or_none, telemetry_dict)
-        """
         now = time.time() if timestamp is None else float(timestamp)
         self.total_frames_processed += 1
         action_triggered: Optional[str] = None
         self.last_rejection_reason = RejectionReason.NONE
         self.last_rejection_detail = ""
 
-        # Case 1: No hand detected or hand lost
+        # Case 1: No hand detected or lost
         if gesture in ("NO_HAND", None, ""):
             self.last_rejection_reason = RejectionReason.NO_HAND
             self.last_rejection_detail = "No hand visible in camera frame"
             self._handle_neutral_observation(now)
             return None, self._telemetry(gesture, confidence, action_triggered, now)
 
-        # Case 2: Unknown gesture pose
-        if gesture == "UNKNOWN":
+        # Case 2: Unknown or uncertain gesture pose
+        if gesture in ("UNKNOWN", "UNCERTAIN"):
             self.last_rejection_reason = RejectionReason.UNRECOGNIZED_POSE
             self.last_rejection_detail = "Hand visible but pose not recognized in target classes"
             self._handle_neutral_observation(now)
             return None, self._telemetry(gesture, confidence, action_triggered, now)
 
-        # Case 3: Gesture is recognized, but confidence is below user-configured threshold
+        # Hand pose seen -> reset neutral frame counter
+        self.neutral_frames = 0
+
+        # Case 3: Gesture recognized, but confidence below threshold
         if confidence < self.confidence_threshold:
             self.low_confidence_rejections += 1
             self.last_rejection_reason = RejectionReason.BELOW_CONFIDENCE
             self.last_rejection_detail = (
                 f"Confidence {confidence:.2f} is below threshold {self.confidence_threshold:.2f}"
             )
-            # If we were building a candidate, a low confidence frame resets it
             if self.state == ControllerState.CANDIDATE:
-                self.state = ControllerState.IDLE
+                self.state = ControllerState.READY
                 self.current_candidate = None
                 self.candidate_frames = 0
             return None, self._telemetry(gesture, confidence, action_triggered, now)
 
-        # Case 4: Held gesture in LOCKED state (prevent repeated execution immediately)
-        if self.state == ControllerState.LOCKED:
+        # Case 4: Held gesture in LOCKED_HOLD state (prevent repeated execution)
+        if self.state in (ControllerState.LOCKED_HOLD, "LOCKED"):
             if gesture == self.locked_gesture:
                 self.repeated_action_preventions += 1
                 self.last_rejection_reason = RejectionReason.LOCKED_HOLD
                 self.last_rejection_detail = (
-                    f"Gesture '{gesture}' is held in LOCKED state. Release hand to neutral to re-arm."
+                    f"Gesture '{gesture}' is held in LOCKED_HOLD state. Release hand to neutral to re-arm."
                 )
                 return None, self._telemetry(gesture, confidence, action_triggered, now)
             else:
-                # User transitioned to a different high-confidence gesture while locked
+                # User switched to a different high-confidence gesture while locked
                 self.state = ControllerState.CANDIDATE
                 self.current_candidate = gesture
                 self.candidate_frames = 1
@@ -174,7 +173,7 @@ class GestureController:
                 self.last_rejection_detail = f"Switching candidate to '{gesture}' (frame 1/{self.required_stable_frames})"
                 return None, self._telemetry(gesture, confidence, action_triggered, now)
 
-        # Case 5: Cooldown period check for newly transitioning gestures
+        # Case 5: Cooldown check for newly transitioning gestures
         time_since_last_action = now - self.last_action_timestamp
         if self.last_action_timestamp > 0 and time_since_last_action < self.cooldown_sec:
             self.last_rejection_reason = RejectionReason.COOLDOWN_ACTIVE
@@ -183,9 +182,8 @@ class GestureController:
             )
             return None, self._telemetry(gesture, confidence, action_triggered, now)
 
-        # Case 6: State Machine Dispatch for candidate buildup
-
-        elif self.state in (ControllerState.IDLE, ControllerState.REARMED):
+        # Case 6: Candidate buildup and One-Shot Execution
+        if self.state in (ControllerState.READY, "IDLE", "REARMED"):
             self.state = ControllerState.CANDIDATE
             self.current_candidate = gesture
             self.candidate_frames = 1
@@ -199,12 +197,11 @@ class GestureController:
                 self.candidate_frames += 1
                 elapsed = now - self.candidate_start_time
 
-                # Check if stability conditions are satisfied
                 if (
                     self.candidate_frames >= self.required_stable_frames
                     and elapsed >= self.stability_duration_sec
                 ):
-                    # Trigger action ONCE
+                    # Trigger action EXACTLY ONCE
                     mapped_action = self.action_mapping.get(gesture)
                     if mapped_action:
                         action_triggered = mapped_action
@@ -213,12 +210,12 @@ class GestureController:
                         self.last_action_timestamp = now
 
                         # Immediately lock repeated execution!
-                        self.state = ControllerState.LOCKED
+                        self.state = ControllerState.LOCKED_HOLD
                         self.locked_gesture = gesture
                         self.current_candidate = None
                         self.candidate_frames = 0
                     else:
-                        self.state = ControllerState.IDLE
+                        self.state = ControllerState.READY
                         self.current_candidate = None
                         self.candidate_frames = 0
                 else:
@@ -229,7 +226,6 @@ class GestureController:
                         f"{elapsed:.2f}s/{self.stability_duration_sec:.2f}s required"
                     )
             else:
-                # Gesture flickered or changed during candidate buildup -> reset candidate
                 self.current_candidate = gesture
                 self.candidate_frames = 1
                 self.candidate_start_time = now
@@ -240,17 +236,21 @@ class GestureController:
         return action_triggered, self._telemetry(gesture, confidence, action_triggered, now)
 
     def _handle_neutral_observation(self, now: float) -> None:
-        """Handle observing a neutral pose (release), re-arming the controller."""
-        if self.state == ControllerState.LOCKED:
-            self.state = ControllerState.REARMED
-            self.locked_gesture = None
-            self.current_candidate = None
-            self.candidate_frames = 0
-            self.neutral_releases_observed += 1
+        """Handle observing a neutral pose with multi-frame sustained release requirement."""
+        if self.state in (ControllerState.LOCKED_HOLD, "LOCKED"):
+            self.neutral_frames += 1
+            if self.neutral_frames >= self.required_neutral_frames:
+                self.state = ControllerState.READY
+                self.locked_gesture = None
+                self.current_candidate = None
+                self.candidate_frames = 0
+                self.neutral_frames = 0
+                self.neutral_releases_observed += 1
         elif self.state == ControllerState.CANDIDATE:
-            self.state = ControllerState.IDLE
+            self.state = ControllerState.READY
             self.current_candidate = None
             self.candidate_frames = 0
+            self.neutral_frames = 0
 
     def _telemetry(
         self,
@@ -259,7 +259,6 @@ class GestureController:
         action: Optional[str],
         now: float,
     ) -> Dict[str, Any]:
-        """Produce structured telemetry for UI and evaluation."""
         stability_pct = 0.0
         if self.state == ControllerState.CANDIDATE and self.required_stable_frames > 0:
             frame_ratio = min(1.0, self.candidate_frames / float(self.required_stable_frames))
@@ -269,11 +268,11 @@ class GestureController:
                 else 1.0
             )
             stability_pct = round(min(frame_ratio, time_ratio) * 100.0, 1)
-        elif self.state == ControllerState.LOCKED:
+        elif self.state in (ControllerState.LOCKED_HOLD, "LOCKED"):
             stability_pct = 100.0
 
         return {
-            "state": self.state.value,
+            "state": self.state.value if isinstance(self.state, ControllerState) else str(self.state),
             "gesture": gesture,
             "confidence": round(confidence, 3),
             "action": action,

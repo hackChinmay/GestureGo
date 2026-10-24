@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Copy, Check, Terminal, FileCode, ExternalLink, Download } from 'lucide-react';
+import { X, Copy, Check, Terminal, FileCode } from 'lucide-react';
 
 interface CodeExplorerModalProps {
   isOpen: boolean;
@@ -18,69 +18,71 @@ const PYTHON_FILES: PythonFileDoc[] = [
   {
     filename: 'gesture_controller.py',
     category: 'State Machine & Decision Layer',
-    description: 'Implements the 5-state one-shot finite state machine (IDLE -> CANDIDATE -> CONFIRMED -> LOCKED -> REARMED) with temporal stability and anti-repeat lock.',
-    command: 'python3 -m unittest tests/test_controller.py',
+    description: 'Implements the 5-state one-shot finite state machine (READY -> CANDIDATE -> EXECUTED -> LOCKED_HOLD -> READY) with temporal stability and multi-frame neutral release guard.',
+    command: 'python3 -m unittest discover tests',
     codeSnippet: `class ControllerState(str, Enum):
-    IDLE = "IDLE"
+    READY = "READY"
     CANDIDATE = "CANDIDATE"
-    CONFIRMED = "CONFIRMED"
-    LOCKED = "LOCKED"
-    REARMED = "REARMED"
+    EXECUTED = "EXECUTED"
+    LOCKED_HOLD = "LOCKED_HOLD"
 
 class GestureController:
-    def __init__(self, confidence_threshold=0.80, stability_duration_sec=0.40, required_stable_frames=8):
+    def __init__(self, confidence_threshold=0.80, stability_duration_sec=0.35, required_stable_frames=7, required_neutral_frames=3):
         self.confidence_threshold = confidence_threshold
-        self.state = ControllerState.IDLE
+        self.state = ControllerState.READY
         self.locked_gesture = None
+        self.neutral_frames = 0
 
     def process_frame(self, gesture, confidence, timestamp=None):
-        # 1. Reject below threshold
-        if confidence < self.confidence_threshold:
+        # 1. Neutral observation: require sustained neutral before re-arming
+        if gesture in ("NO_HAND", "UNKNOWN", "UNCERTAIN"):
+            if self.state == ControllerState.LOCKED_HOLD:
+                self.neutral_frames += 1
+                if self.neutral_frames >= self.required_neutral_frames:
+                    self.state = ControllerState.READY # Safely re-armed
             return None, self._telemetry(...)
 
-        # 2. Block repeat firing on held gestures
-        if self.state == ControllerState.LOCKED and gesture == self.locked_gesture:
+        # 2. Prevent repeated action execution while gesture is held
+        if self.state == ControllerState.LOCKED_HOLD and gesture == self.locked_gesture:
             self.repeated_action_preventions += 1
             return None, self._telemetry(..., rejection="LOCKED_HOLD")
 
-        # 3. Accumulate temporal stability
+        # 3. Stable candidate accumulation
         if self.state == ControllerState.CANDIDATE and self.candidate_frames >= self.required_stable_frames:
             action = self.action_mapping.get(gesture)
-            self.state = ControllerState.LOCKED
+            self.state = ControllerState.LOCKED_HOLD
             self.locked_gesture = gesture
             return action, self._telemetry(...) # Executed EXACTLY ONCE!`,
   },
   {
     filename: 'preprocess.py',
     category: 'Feature Extraction & Normalization',
-    description: 'Transforms raw 21 MediaPipe 3D coordinates into a 63-element invariant feature vector normalized relative to wrist origin and maximum Euclidean hand scale.',
-    command: 'python3 -c "import preprocess; print(preprocess.FEATURE_NAMES)"',
-    codeSnippet: `def normalize_landmarks(raw_landmarks: List[Dict[str, float]]) -> List[float]:
-    # Step 1: Origin translation relative to Wrist (Landmark 0)
-    wrist = raw_landmarks[0]
-    translated = []
-    max_dist = 0.0
+    description: 'Extracts 21 MediaPipe landmarks, performs wrist-centered translation and maximum Euclidean scale normalization into a 63-D feature vector. Includes kinematic POINTING_DOWN classifier.',
+    command: 'python3 -c "import preprocess; print(preprocess.GESTURE_CLASSES)"',
+    codeSnippet: `GESTURE_CLASSES = [
+    "OPEN_PALM", "POINTING_UP", "POINTING_DOWN", "VICTORY",
+    "THUMBS_UP", "CLOSED_FIST", "THUMBS_DOWN", "I_LOVE_YOU"
+]
 
+def normalize_landmarks(raw_landmarks):
+    wrist = raw_landmarks[0]
+    translated, max_dist = [], 0.0
     for pt in raw_landmarks:
-        dx = pt["x"] - wrist["x"]
-        dy = pt["y"] - wrist["y"]
-        dz = pt["z"] - wrist["z"]
-        dist = math.sqrt(dx * dx + dy * dy + dz * dz)
-        if dist > max_dist:
-            max_dist = dist
+        dx, dy, dz = pt["x"] - wrist["x"], pt["y"] - wrist["y"], pt["z"] - wrist["z"]
+        dist = math.sqrt(dx*dx + dy*dy + dz*dz)
+        if dist > max_dist: max_dist = dist
         translated.append((dx, dy, dz))
 
-    # Step 2: Maximum Euclidean scale normalization
-    scale = max_dist if max_dist > 1e-6 else 1.0
-    feature_vector = []
+    scale = max(max_dist, 1e-6)
+    vector = []
     for dx, dy, dz in translated:
-        feature_vector.extend([dx / scale, dy / scale, dz / scale])
-    return feature_vector # 21 * 3 = 63 normalized coordinates`,
+        vector.extend([dx / scale, dy / scale, dz / scale])
+    return vector # 63 normalized coordinates`,
   },
   {
     filename: 'train_model.py',
-    category: 'Machine Learning Training Pipeline',
-    description: 'Trains an XGBoost multiclass classifier with GroupShuffleSplit across participant sessions to eliminate spatial-temporal leakage, producing calibrated probability estimates.',
+    category: 'Custom ML Classifier Pipeline',
+    description: 'Trains an XGBoost multiclass model using GroupShuffleSplit across participant recording sessions to eliminate spatial-temporal leakage.',
     command: 'python3 train_model.py --data data/gesture_landmarks.csv --output models/gesture_xgboost.joblib',
     codeSnippet: `def train_gesture_classifier(data_path="data/gesture_landmarks.csv", output_path="models/gesture_xgboost.joblib"):
     df, counts = validate_dataset(data_path)
@@ -102,55 +104,35 @@ class GestureController:
   {
     filename: 'gesture_classifier.py',
     category: 'Hybrid Recognition Engine',
-    description: 'Loads trained XGBoost model if available; transparently falls back to MediaPipe built-in kinematics with honest backend telemetry (never fakes XGBoost execution).',
+    description: 'Loads trained custom model if available; transparently falls back to MediaPipe built-in kinematics with honest backend telemetry (never fakes XGBoost execution).',
     command: 'python3 -c "from gesture_classifier import GestureClassifier; print(GestureClassifier().active_backend)"',
     codeSnippet: `class GestureClassifier:
     def __init__(self, model_path="models/gesture_xgboost.joblib"):
         self.load_custom_model(model_path)
 
     def predict(self, raw_landmarks, mp_label=None, mp_score=None):
-        # 1. XGBoost inference path
         if self.active_backend == "CUSTOM_XGBOOST" and self.model is not None:
             probas = self.model.predict_proba(x)[0]
             return top_class, float(score), prob_dict
 
-        # 2. Built-in MediaPipe & kinematic fallback
+        # Built-in kinematics fallback (supports POINTING_DOWN)
         return self._predict_builtin_kinematics(norm_features, mp_label, mp_score)`,
-  },
-  {
-    filename: 'app.py',
-    category: 'Streamlit Touchless Kiosk App',
-    description: 'The complete Streamlit campus assistant kiosk with live camera sensor feed, decision telemetry, manual controls, and testing dashboard.',
-    command: 'streamlit run app.py',
-    codeSnippet: `# Launching the Streamlit Kiosk
-import streamlit as st
-from gesture_controller import GestureController
-from campus_data import SCHEDULE_ITEMS, CAMPUS_VENUES
-
-st.set_page_config(page_title="GestureGo", layout="wide")
-ctrl = st.session_state.controller
-
-# Camera and decision layer settings
-conf_thresh = st.sidebar.slider("Confidence Threshold", 0.50, 0.95, 0.80)
-act, tel = ctrl.process_frame(detected_pose, confidence)
-if act:
-    execute_action(act)`,
   },
   {
     filename: 'tests/test_controller.py',
     category: 'Automated Unit Tests',
-    description: '17 automated tests verifying 1-shot execution, held-gesture suppression, low-confidence drop, and neutral release re-arming.',
+    description: 'Unit tests verifying one-shot execution, held gesture suppression, low-confidence drop, neutral release re-arming, and real Next Page / Scroll Down mappings.',
     command: 'python3 -m unittest discover tests',
     codeSnippet: `class TestGestureController(unittest.TestCase):
-    def test_temporal_stability_and_one_shot_execution(self):
+    def test_one_shot_and_anti_repeat(self):
         # Frame 4 triggers action
-        action, _ = self.controller.process_frame("OPEN_PALM", 0.90, timestamp=1.22)
-        self.assertEqual(action, "GO_HOME")
-        self.assertEqual(self.controller.state, ControllerState.LOCKED)
+        action, _ = self.controller.process_frame("POINTING_UP", 0.90, timestamp=1.20)
+        self.assertEqual(action, "NEXT_PAGE")
+        self.assertEqual(self.controller.state, ControllerState.LOCKED_HOLD)
 
-        # Held gesture (frames 5 to 10) must NEVER repeat action!
+        # Held gesture must NEVER repeat action!
         for t in [1.30, 1.50, 2.00, 3.00]:
-            repeat_act, _ = self.controller.process_frame("OPEN_PALM", 0.95, timestamp=t)
+            repeat_act, _ = self.controller.process_frame("POINTING_UP", 0.95, timestamp=t)
             self.assertIsNone(repeat_act)
         self.assertEqual(self.controller.total_actions_triggered, 1)`,
   },
@@ -169,38 +151,38 @@ export const CodeExplorerModal: React.FC<CodeExplorerModalProps> = ({ isOpen, on
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 animate-fade-in">
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-5xl h-[85vh] flex flex-col shadow-2xl overflow-hidden">
+    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 animate-fade-in">
+      <div className="bg-[#FFF7E8] border-2 border-[#17151B] rounded-lg w-full max-w-4xl h-[85vh] flex flex-col ink-shadow-lg overflow-hidden">
         {/* Header */}
-        <div className="px-5 py-4 bg-slate-950 border-b border-slate-800 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-indigo-400">
-              <Terminal className="w-5 h-5" />
+        <div className="px-4 py-3 bg-white border-b-2 border-[#17151B] flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 rounded bg-[#D8FF4F] border border-[#17151B] text-[#17151B]">
+              <Terminal className="w-4 h-4 stroke-[2.5]" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-white tracking-tight">
+              <h2 className="text-sm font-black text-[#17151B] uppercase tracking-wide">
                 GestureGo Python Architecture & Source Code
               </h2>
-              <p className="text-xs text-slate-400">
-                Full standalone implementation for Streamlit, OpenCV, MediaPipe & XGBoost
+              <p className="text-[11px] text-[#655E68]">
+                OpenCV, MediaPipe, XGBoost, and Streamlit implementation files
               </p>
             </div>
           </div>
 
           <button
             onClick={onClose}
-            className="p-2 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
+            className="p-1.5 rounded border border-[#17151B] bg-[#FFF7E8] hover:bg-[#FF7048] text-[#17151B] cursor-pointer"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Body (Sidebar + Code View) */}
+        {/* Body */}
         <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
-          {/* File Picker Sidebar */}
-          <div className="w-full md:w-72 bg-slate-950/60 border-r border-slate-800 p-3 overflow-y-auto space-y-1.5 shrink-0">
-            <div className="text-[10px] uppercase font-bold text-slate-500 px-2 py-1 tracking-wider">
-              Project Modules
+          {/* File Picker */}
+          <div className="w-full md:w-64 bg-white border-r-2 border-[#17151B] p-2 overflow-y-auto space-y-1 shrink-0">
+            <div className="text-[10px] uppercase font-mono font-black text-[#655E68] px-2 py-1">
+              Modules & Tests
             </div>
             {PYTHON_FILES.map((f) => {
               const isSelected = f.filename === selectedFile.filename;
@@ -208,71 +190,62 @@ export const CodeExplorerModal: React.FC<CodeExplorerModalProps> = ({ isOpen, on
                 <button
                   key={f.filename}
                   onClick={() => setSelectedFile(f)}
-                  className={`w-full text-left p-2.5 rounded-xl text-xs transition-all flex flex-col gap-0.5 ${
+                  className={`w-full text-left p-2 rounded text-xs transition-colors flex flex-col gap-0.5 cursor-pointer border ${
                     isSelected
-                      ? 'bg-indigo-600/20 text-indigo-300 border border-indigo-500/40 shadow-sm'
-                      : 'hover:bg-slate-800/80 text-slate-400 hover:text-slate-200 border border-transparent'
+                      ? 'bg-[#D8FF4F] text-[#17151B] border-[#17151B] font-bold'
+                      : 'hover:bg-[#FFF7E8] text-[#17151B] border-transparent'
                   }`}
                 >
-                  <div className="flex items-center gap-2 font-mono font-bold">
+                  <div className="flex items-center gap-1.5 font-mono">
                     <FileCode className="w-3.5 h-3.5" />
                     <span>{f.filename}</span>
                   </div>
-                  <span className="text-[10px] text-slate-500 truncate">{f.category}</span>
+                  <span className="text-[10px] text-[#655E68] truncate">{f.category}</span>
                 </button>
               );
             })}
           </div>
 
           {/* Code Viewer */}
-          <div className="flex-1 flex flex-col bg-slate-900 overflow-hidden">
-            <div className="p-4 bg-slate-950/80 border-b border-slate-800 flex flex-wrap items-center justify-between gap-2">
+          <div className="flex-1 flex flex-col bg-[#FFF7E8] overflow-hidden">
+            <div className="p-3 bg-white border-b-2 border-[#17151B] flex items-center justify-between gap-2">
               <div>
-                <span className="text-xs font-mono font-bold text-indigo-400">
+                <span className="text-xs font-mono font-black text-[#17151B]">
                   {selectedFile.filename}
                 </span>
-                <p className="text-xs text-slate-400 mt-0.5">{selectedFile.description}</p>
+                <p className="text-[11px] text-[#655E68] mt-0.5">{selectedFile.description}</p>
               </div>
 
               <button
                 onClick={() => handleCopy(selectedFile.codeSnippet)}
-                className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs border border-slate-700 flex items-center gap-1.5 transition-all"
+                className="px-2.5 py-1 rounded bg-[#FFF7E8] hover:bg-[#D8FF4F] text-[#17151B] text-xs border border-[#17151B] font-bold flex items-center gap-1 cursor-pointer"
               >
-                {copied ? (
-                  <>
-                    <Check className="w-3.5 h-3.5 text-emerald-400" />
-                    <span>Copied!</span>
-                  </>
-                ) : (
-                  <>
-                    <Copy className="w-3.5 h-3.5" />
-                    <span>Copy Code</span>
-                  </>
-                )}
+                {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                <span>{copied ? 'Copied' : 'Copy'}</span>
               </button>
             </div>
 
-            {/* Run Command Bar */}
-            <div className="px-4 py-2 bg-slate-950 border-b border-slate-800 flex items-center gap-2 text-xs font-mono">
-              <span className="text-teal-400 font-bold">$</span>
-              <span className="text-slate-300 select-all">{selectedFile.command}</span>
+            {/* Terminal Command */}
+            <div className="px-3 py-1.5 bg-[#17151B] text-[#D8FF4F] text-xs font-mono flex items-center gap-2">
+              <span className="text-white">$</span>
+              <span className="select-all">{selectedFile.command}</span>
             </div>
 
-            {/* Source Display */}
-            <div className="flex-1 p-4 overflow-auto font-mono text-xs text-slate-200 bg-slate-950/40 leading-relaxed">
+            {/* Code Pre */}
+            <div className="flex-1 p-3 overflow-auto font-mono text-xs text-[#17151B] bg-white leading-relaxed">
               <pre className="whitespace-pre">{selectedFile.codeSnippet}</pre>
             </div>
           </div>
         </div>
 
         {/* Footer */}
-        <div className="px-5 py-3 bg-slate-950 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400">
-          <span>All files generated and verified with 17 passing automated unit tests.</span>
+        <div className="px-4 py-2.5 bg-white border-t-2 border-[#17151B] flex items-center justify-between text-xs text-[#655E68]">
+          <span className="font-medium">All Python modules tested with automated unit tests.</span>
           <button
             onClick={onClose}
-            className="px-4 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-semibold"
+            className="px-3 py-1 rounded bg-[#17151B] text-[#D8FF4F] font-bold cursor-pointer"
           >
-            Close Explorer
+            Close
           </button>
         </div>
       </div>

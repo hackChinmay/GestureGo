@@ -109,11 +109,12 @@ To prevent accidental interactions and prevent repeated firing while a gesture i
 
 | Gesture Class | Target Kiosk Action | Semantic Role |
 | :--- | :--- | :--- |
-| `OPEN_PALM` | `GO_HOME` | Return to main dashboard |
-| `POINTING_UP` | `NEXT_ITEM` | Cycle to next schedule/menu item |
-| `VICTORY` | `OPEN_SCHEDULE` | Open schedule and keynotes |
-| `THUMBS_UP` | `CONFIRM` | Confirm selected option / register |
-| `CLOSED_FIST` | `GO_BACK` | Return to previous view |
+| `OPEN_PALM` | `HOME` | Return to main campus dashboard |
+| `POINTING_UP` | `NEXT_PAGE` | Advance to next page in sequence (PAGE_ORDER) |
+| `POINTING_DOWN` | `SCROLL_DOWN` | Scroll active section container down by 65% |
+| `VICTORY` | `OPEN_SCHEDULE` | Open schedule and keynotes directly |
+| `THUMBS_UP` | `CONFIRM_OR_SELECT` | Confirm selected option / register pass |
+| `CLOSED_FIST` | `BACK` | Return to previous view in history stack |
 | `THUMBS_DOWN` | `CANCEL` | Dismiss modal or cancel action |
 | `I_LOVE_YOU` | `OPEN_HELP` | Open help & gesture instruction modal |
 

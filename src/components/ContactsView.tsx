@@ -1,64 +1,71 @@
 import React from 'react';
 import { ORGANIZER_CONTACTS } from '../campusData';
-import { Phone, Mail, Building, ShieldAlert, LifeBuoy } from 'lucide-react';
+import { Phone, Mail, Building, ShieldAlert } from 'lucide-react';
 
 export const ContactsView: React.FC = () => {
   return (
-    <div className="space-y-4">
+    <div className="space-y-3.5">
       {/* Header */}
-      <div className="border-b border-slate-800 pb-3">
-        <div className="flex items-center gap-2">
-          <Phone className="w-5 h-5 text-amber-400" />
-          <h2 className="text-xl font-bold text-white tracking-tight">
-            Organizer & Emergency Support Directory
-          </h2>
+      <div className="border-b-2 border-[#17151B] pb-2.5 flex items-center justify-between flex-wrap gap-2">
+        <div>
+          <div className="flex items-center gap-2">
+            <Phone className="w-5 h-5 text-[#FF7048] stroke-[2.5]" />
+            <h2 className="text-xl font-black text-[#17151B] uppercase tracking-tight">
+              Organizers & Emergency Directory
+            </h2>
+          </div>
+          <p className="text-xs text-[#655E68] mt-0.5">
+            Faculty advisors, student leadership, security HQ, and technical support.
+          </p>
         </div>
-        <p className="text-xs text-slate-400 mt-0.5">
-          Campus security, event committee chairs, medical response, and kiosk engineering.
-        </p>
+
+        <div className="text-[11px] font-mono text-[#17151B] bg-[#FFF7E8] border border-[#17151B] px-2 py-0.5 rounded">
+          👇 <strong>POINTING_DOWN</strong> scrolls directory
+        </div>
       </div>
 
-      {/* Emergency Notice Card */}
-      <div className="p-4 rounded-xl bg-amber-950/40 border border-amber-600/50 text-amber-200 text-xs flex items-start gap-3">
-        <ShieldAlert className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+      {/* Campus Emergency Notice */}
+      <div className="p-3.5 rounded-lg bg-[#FF7048] border-2 border-[#17151B] ink-shadow text-[#17151B] flex items-start gap-2.5">
+        <ShieldAlert className="w-5 h-5 shrink-0 stroke-[2.5]" />
         <div>
-          <strong className="text-sm font-bold block text-white">Campus Emergency Desk</strong>
-          <p className="mt-0.5 text-amber-300">
-            For urgent safety or medical assistance, dial <strong>+1 (555) 019-9911</strong> or visit
-            the First Response tent at North Portal Gate.
+          <strong className="text-sm font-black uppercase tracking-wide block">
+            Emergency & Medical Response
+          </strong>
+          <p className="text-xs font-semibold mt-0.5 leading-snug">
+            Immediate assistance: dial <strong>+1 (555) 019-9911</strong> or report to North Gate Security Pavilion.
           </p>
         </div>
       </div>
 
-      {/* Contacts Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+      {/* Directory Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
         {ORGANIZER_CONTACTS.map((c, idx) => (
           <div
             key={idx}
-            className="p-4 rounded-xl bg-slate-900/80 border border-slate-800 hover:border-slate-700 transition-all space-y-2.5"
+            className="p-3.5 rounded-lg bg-white border-2 border-[#17151B] ink-shadow space-y-2"
           >
             <div>
-              <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-teal-400 px-2 py-0.5 rounded bg-teal-500/10 border border-teal-500/20">
+              <span className="text-[10px] font-mono font-black uppercase px-2 py-0.5 rounded bg-[#17151B] text-[#D8FF4F]">
                 {c.role}
               </span>
-              <h3 className="text-base font-bold text-white mt-1.5">{c.name}</h3>
-              <p className="text-xs text-slate-400">{c.dept}</p>
+              <h3 className="text-base font-black text-[#17151B] mt-1.5">{c.name}</h3>
+              <p className="text-xs text-[#655E68] font-medium">{c.dept}</p>
             </div>
 
-            <div className="pt-2 border-t border-slate-800 space-y-1.5 text-xs text-slate-300">
+            <div className="pt-2 border-t border-[#17151B]/20 space-y-1 text-xs text-[#17151B]">
               <div className="flex items-center gap-2">
-                <Building className="w-3.5 h-3.5 text-slate-400" />
-                <span>Office: <strong className="text-slate-200">{c.office}</strong></span>
+                <Building className="w-3.5 h-3.5 text-[#655E68]" />
+                <span>Office: <strong className="font-mono">{c.office}</strong></span>
               </div>
               <div className="flex items-center gap-2">
-                <Mail className="w-3.5 h-3.5 text-slate-400" />
-                <a href={`mailto:${c.email}`} className="text-teal-400 hover:underline">
+                <Mail className="w-3.5 h-3.5 text-[#655E68]" />
+                <a href={`mailto:${c.email}`} className="text-[#17151B] underline hover:text-[#FF7048]">
                   {c.email}
                 </a>
               </div>
               <div className="flex items-center gap-2">
-                <Phone className="w-3.5 h-3.5 text-slate-400" />
-                <a href={`tel:${c.phone}`} className="text-cyan-400 hover:underline font-mono">
+                <Phone className="w-3.5 h-3.5 text-[#655E68]" />
+                <a href={`tel:${c.phone}`} className="font-mono font-bold text-[#17151B] hover:underline">
                   {c.phone}
                 </a>
               </div>

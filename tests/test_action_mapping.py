@@ -2,7 +2,15 @@
 tests/test_action_mapping.py - Action Mapping and Pipeline Integrity Tests.
 
 Verifies:
-- All 7 gesture mappings yield their exact assigned kiosk actions
+- All 8 gesture mappings yield their exact assigned kiosk actions:
+  OPEN_PALM -> HOME
+  POINTING_UP -> NEXT_PAGE
+  POINTING_DOWN -> SCROLL_DOWN
+  VICTORY -> OPEN_SCHEDULE
+  THUMBS_UP -> CONFIRM_OR_SELECT
+  CLOSED_FIST -> BACK
+  THUMBS_DOWN -> CANCEL
+  I_LOVE_YOU -> OPEN_HELP
 - Preprocess normalization produces 63 elements
 - Scale and translation invariance
 - Missing model files fall back safely to built-in kinematics
@@ -29,25 +37,29 @@ class TestActionMappingAndPipeline(unittest.TestCase):
         a2, _ = self.controller.process_frame(gesture, 0.95, timestamp=start_time + 0.08)
         return a2
 
-    def test_open_palm_maps_to_go_home(self):
+    def test_open_palm_maps_to_home(self):
         action = self._trigger_gesture("OPEN_PALM")
-        self.assertEqual(action, "GO_HOME")
+        self.assertEqual(action, "HOME")
 
-    def test_pointing_up_maps_to_next_item(self):
+    def test_pointing_up_maps_to_next_page(self):
         action = self._trigger_gesture("POINTING_UP")
-        self.assertEqual(action, "NEXT_ITEM")
+        self.assertEqual(action, "NEXT_PAGE")
+
+    def test_pointing_down_maps_to_scroll_down(self):
+        action = self._trigger_gesture("POINTING_DOWN")
+        self.assertEqual(action, "SCROLL_DOWN")
 
     def test_victory_maps_to_open_schedule(self):
         action = self._trigger_gesture("VICTORY")
         self.assertEqual(action, "OPEN_SCHEDULE")
 
-    def test_thumbs_up_maps_to_confirm(self):
+    def test_thumbs_up_maps_to_confirm_or_select(self):
         action = self._trigger_gesture("THUMBS_UP")
-        self.assertEqual(action, "CONFIRM")
+        self.assertEqual(action, "CONFIRM_OR_SELECT")
 
-    def test_closed_fist_maps_to_go_back(self):
+    def test_closed_fist_maps_to_back(self):
         action = self._trigger_gesture("CLOSED_FIST")
-        self.assertEqual(action, "GO_BACK")
+        self.assertEqual(action, "BACK")
 
     def test_thumbs_down_maps_to_cancel(self):
         action = self._trigger_gesture("THUMBS_DOWN")
@@ -69,10 +81,8 @@ class TestActionMappingAndPipeline(unittest.TestCase):
 
     def test_classifier_fallback_on_missing_model(self):
         clf = GestureClassifier(model_path="models/non_existent_model_12345.joblib")
-        # Should gracefully detect missing file and switch to MEDIAPIPE_BUILTIN
         self.assertEqual(clf.active_backend, "MEDIAPIPE_BUILTIN")
         self.assertFalse(clf.model_metadata["loaded"])
-        # Should not crash on prediction
         pred, conf, probas = clf.predict(None)
         self.assertEqual(pred, "NO_HAND")
         self.assertEqual(conf, 0.0)

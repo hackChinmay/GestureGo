@@ -1,6 +1,7 @@
 export type GestureClass =
   | 'OPEN_PALM'
   | 'POINTING_UP'
+  | 'POINTING_DOWN'
   | 'VICTORY'
   | 'THUMBS_UP'
   | 'CLOSED_FIST'
@@ -8,18 +9,34 @@ export type GestureClass =
   | 'I_LOVE_YOU'
   | 'NO_HAND'
   | 'UNKNOWN'
-  | 'UNCERTAIN';
+  | 'UNCERTAIN'
+  | 'LOCKED_HOLD';
 
 export type KioskAction =
+  | 'HOME'
+  | 'NEXT_PAGE'
+  | 'OPEN_SCHEDULE'
+  | 'CONFIRM_OR_SELECT'
+  | 'BACK'
+  | 'SCROLL_DOWN'
+  | 'CANCEL'
+  | 'OPEN_HELP'
+  // Legacy alias compatibility
   | 'GO_HOME'
   | 'NEXT_ITEM'
-  | 'OPEN_SCHEDULE'
   | 'CONFIRM'
-  | 'GO_BACK'
-  | 'CANCEL'
-  | 'OPEN_HELP';
+  | 'GO_BACK';
 
-export type ControllerState = 'IDLE' | 'CANDIDATE' | 'CONFIRMED' | 'LOCKED' | 'REARMED';
+export type ControllerState =
+  | 'READY'
+  | 'CANDIDATE'
+  | 'EXECUTED'
+  | 'LOCKED_HOLD'
+  // Legacy aliases
+  | 'IDLE'
+  | 'CONFIRMED'
+  | 'LOCKED'
+  | 'REARMED';
 
 export type RejectionReason =
   | 'NONE'

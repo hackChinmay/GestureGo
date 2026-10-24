@@ -31,18 +31,20 @@ GestureGo is a production-grade touchless human-computer interaction (HCI) kiosk
 
 | Gesture Class | Assigned Kiosk Action | Behavior |
 | :--- | :--- | :--- |
-| `OPEN_PALM` | `GO_HOME` | Returns to the central campus dashboard |
-| `POINTING_UP` | `NEXT_ITEM` | Cycles to the next schedule event or menu item |
-| `VICTORY` | `OPEN_SCHEDULE` | Opens the Tech Con keynote and track schedule |
-| `THUMBS_UP` | `CONFIRM` | Confirms current selection / registers for session |
-| `CLOSED_FIST` | `GO_BACK` | Returns to the previous view in navigation stack |
+| `OPEN_PALM` | `HOME` | Returns to the central campus dashboard |
+| `POINTING_UP` | `NEXT_PAGE` | Advances to the next campus page along configured PAGE_ORDER |
+| `POINTING_DOWN` | `SCROLL_DOWN` | Smoothly scrolls active content container down by 65% |
+| `VICTORY` | `OPEN_SCHEDULE` | Directly opens the Tech Con keynote and track schedule |
+| `THUMBS_UP` | `CONFIRM_OR_SELECT` | Confirms current selection / registers for session |
+| `CLOSED_FIST` | `BACK` | Returns to the previous view in navigation history stack |
 | `THUMBS_DOWN` | `CANCEL` | Dismisses modal alerts or cancels operations |
 | `I_LOVE_YOU` | `OPEN_HELP` | Displays the help and gesture guide |
 
-Special States:
+Special States (Never Trigger Actions):
 - `NO_HAND`: No hand detected in frame; releases locked state to neutral.
-- `UNKNOWN`: Hand visible but does not match any of the 7 supported classes.
+- `UNKNOWN`: Hand visible but does not match any supported classes.
 - `UNCERTAIN`: Prediction score is below configured confidence threshold or temporal stability threshold.
+- `LOCKED_HOLD`: Action already fired once; holding pose blocked from repeating.
 
 ---
 

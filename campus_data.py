@@ -16,19 +16,36 @@ EVENT_INFO = {
     "disclaimer": "Sample kiosk demonstration content. Real event details may vary.",
 }
 
-# The 7 canonical gesture classes and their actions
+# Canonical Page Order
+PAGE_ORDER = [
+    "Home",
+    "Schedule",
+    "Venues",
+    "Stalls",
+    "Contacts",
+    "Help",
+    "Evaluation",
+]
+
+# The 8 canonical gesture classes and their actions
 GESTURE_DEFINITIONS = {
     "OPEN_PALM": {
-        "action": "GO_HOME",
+        "action": "HOME",
         "description": "Return to the main home dashboard",
         "category": "Navigation",
         "icon": "hand",
     },
     "POINTING_UP": {
-        "action": "NEXT_ITEM",
-        "description": "Move to the next menu or schedule item",
-        "category": "Selection",
+        "action": "NEXT_PAGE",
+        "description": "Navigate to the next campus page in sequence",
+        "category": "Navigation",
         "icon": "arrow-up",
+    },
+    "POINTING_DOWN": {
+        "action": "SCROLL_DOWN",
+        "description": "Scroll active page content down by 65%",
+        "category": "Navigation",
+        "icon": "arrow-down",
     },
     "VICTORY": {
         "action": "OPEN_SCHEDULE",
@@ -37,13 +54,13 @@ GESTURE_DEFINITIONS = {
         "icon": "calendar",
     },
     "THUMBS_UP": {
-        "action": "CONFIRM",
-        "description": "Confirm the selected menu option or registration",
+        "action": "CONFIRM_OR_SELECT",
+        "description": "Confirm the selected option or registration",
         "category": "Action",
         "icon": "check",
     },
     "CLOSED_FIST": {
-        "action": "GO_BACK",
+        "action": "BACK",
         "description": "Return to the previous screen",
         "category": "Navigation",
         "icon": "undo",

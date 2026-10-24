@@ -1,12 +1,13 @@
 import React from 'react';
 import { GESTURE_DEFINITIONS } from '../campusData';
 import { GestureClass } from '../types';
-import { HelpCircle, Sun, ShieldCheck, Info, CheckCircle2 } from 'lucide-react';
+import { HelpCircle, Sun, Info, CheckCircle2, ArrowDown } from 'lucide-react';
 
 export const HelpView: React.FC = () => {
   const supportedGestures: GestureClass[] = [
     'OPEN_PALM',
     'POINTING_UP',
+    'POINTING_DOWN',
     'VICTORY',
     'THUMBS_UP',
     'CLOSED_FIST',
@@ -15,106 +16,106 @@ export const HelpView: React.FC = () => {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Header */}
-      <div className="border-b border-slate-800 pb-3">
-        <div className="flex items-center gap-2">
-          <HelpCircle className="w-5 h-5 text-purple-400" />
-          <h2 className="text-xl font-bold text-white tracking-tight">
-            Gesture Reference & HCI Instructions
-          </h2>
+      <div className="border-b-2 border-[#17151B] pb-2.5 flex items-center justify-between flex-wrap gap-2">
+        <div>
+          <div className="flex items-center gap-2">
+            <HelpCircle className="w-5 h-5 text-[#B8A0FF] stroke-[2.5]" />
+            <h2 className="text-xl font-black text-[#17151B] uppercase tracking-tight">
+              Gesture Guide & Instructions
+            </h2>
+          </div>
+          <p className="text-xs text-[#655E68] mt-0.5">
+            Anatomical hand poses, one-shot interaction lifecycle, and manual fallbacks.
+          </p>
         </div>
-        <p className="text-xs text-slate-400 mt-0.5">
-          Detailed anatomical pose guide, action mappings, and lighting tips.
-        </p>
+
+        <div className="text-[11px] font-mono text-[#17151B] bg-[#FFF7E8] border border-[#17151B] px-2 py-0.5 rounded">
+          👇 <strong>POINTING_DOWN</strong> scrolls guide
+        </div>
       </div>
 
-      {/* 7 Gestures Reference Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+      {/* 8 Gesture Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
         {supportedGestures.map((g) => {
           const def = GESTURE_DEFINITIONS[g];
           return (
             <div
               key={g}
-              className="p-4 rounded-xl bg-slate-900/80 border border-slate-800 hover:border-slate-700 transition-all space-y-2.5"
+              className="p-3.5 rounded-lg bg-white border-2 border-[#17151B] ink-shadow space-y-1.5"
             >
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <span className="text-2xl p-1.5 rounded-lg bg-slate-800 border border-slate-700/80 shadow-sm">
+                <div className="flex items-center gap-2">
+                  <span className="text-xl p-1 rounded bg-[#FFF7E8] border border-[#17151B]">
                     {def.icon}
                   </span>
                   <div>
-                    <h3 className="text-base font-bold text-white">
+                    <h3 className="text-sm font-black text-[#17151B]">
                       {g.replace('_', ' ')}
                     </h3>
-                    <span className="text-[11px] text-teal-400 font-mono font-semibold">
+                    <span className="text-[11px] font-mono font-black text-[#17151B] bg-[#D8FF4F] px-1 rounded">
                       Action: {def.action}
                     </span>
                   </div>
                 </div>
-                <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-slate-800 border border-slate-700 text-slate-400">
+                <span className="text-[9px] font-mono uppercase font-bold px-1.5 py-0.5 rounded bg-[#E9E0FF] text-[#17151B] border border-[#17151B]">
                   {def.category}
                 </span>
               </div>
 
-              <p className="text-xs text-slate-300 font-medium">
+              <p className="text-xs text-[#17151B] font-medium leading-snug">
                 {def.description}
               </p>
 
-              <div className="pt-2 border-t border-slate-800/80 text-[11px] text-slate-400 bg-slate-950/60 p-2 rounded-lg">
-                <strong className="text-slate-300">How to form:</strong> {def.prompt}
+              <div className="text-[11px] text-[#655E68] bg-[#FFF7E8] p-1.5 rounded border border-[#17151B]/20 font-mono">
+                <strong className="text-[#17151B]">Form:</strong> {def.prompt}
               </div>
             </div>
           );
         })}
       </div>
 
-      {/* Best Practices & Lighting Guide */}
-      <div className="p-5 rounded-2xl bg-slate-900/90 border border-slate-800 space-y-4">
-        <h3 className="text-sm font-bold text-white flex items-center gap-2">
-          <Sun className="w-4 h-4 text-amber-400" />
-          <span>Optimal Usage Conditions & Ergonomics</span>
+      {/* One-Shot Lifecycle Explanation */}
+      <div className="p-4 rounded-lg bg-[#E9E0FF] border-2 border-[#17151B] ink-shadow space-y-2">
+        <h3 className="text-sm font-black text-[#17151B] uppercase tracking-wide">
+          One-Shot Gesture Lifecycle: READY → CANDIDATE → EXECUTED → LOCKED_HOLD → READY
         </h3>
+        <p className="text-xs text-[#17151B] font-medium leading-relaxed">
+          To prevent repetitive triggers while holding a gesture, the kiosk executes your intended action <strong>exactly once</strong> and immediately locks. To execute another action, simply return your hand to a neutral position for ~0.15s to re-arm.
+        </p>
+      </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs text-slate-300">
-          <div className="p-3 rounded-lg bg-slate-950/60 border border-slate-800 space-y-1">
-            <strong className="text-teal-300 block">Camera Distance</strong>
-            <p className="text-slate-400">
-              Stand or sit approximately <strong>1.5 to 3 feet (45–90 cm)</strong> away
-              so your whole hand and wrist are visible in frame.
-            </p>
+      {/* Usage Conditions */}
+      <div className="p-4 rounded-lg bg-white border-2 border-[#17151B] ink-shadow space-y-2 text-xs">
+        <h3 className="text-xs font-black uppercase tracking-wider text-[#17151B] flex items-center gap-1.5">
+          <Sun className="w-4 h-4 text-[#FF7048]" />
+          <span>Optimal Usage Recommendations</span>
+        </h3>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+          <div className="p-2 rounded bg-[#FFF7E8] border border-[#17151B]">
+            <strong className="block text-[#17151B] font-bold">1.5 - 3 Feet Distance</strong>
+            <span className="text-[#655E68]">Keep entire hand and wrist inside the camera frame.</span>
           </div>
-
-          <div className="p-3 rounded-lg bg-slate-950/60 border border-slate-800 space-y-1">
-            <strong className="text-cyan-300 block">Ambient Lighting</strong>
-            <p className="text-slate-400">
-              Ensure front lighting on your hand. Avoid harsh backlights (e.g. bright windows
-              directly behind you) to preserve clear landmark contrast.
-            </p>
+          <div className="p-2 rounded bg-[#FFF7E8] border border-[#17151B]">
+            <strong className="block text-[#17151B] font-bold">Front Lighting</strong>
+            <span className="text-[#655E68]">Avoid strong backlights directly behind your body.</span>
           </div>
-
-          <div className="p-3 rounded-lg bg-slate-950/60 border border-slate-800 space-y-1">
-            <strong className="text-indigo-300 block">Hold & Release</strong>
-            <p className="text-slate-400">
-              Hold the gesture steadily for ~0.4s until the progress bar completes. Release to
-              neutral (lower hand) to re-arm for your next action.
-            </p>
+          <div className="p-2 rounded bg-[#FFF7E8] border border-[#17151B]">
+            <strong className="block text-[#17151B] font-bold">Manual Fallback</strong>
+            <span className="text-[#655E68]">Always use the 8 manual buttons if camera is paused.</span>
           </div>
         </div>
       </div>
 
-      {/* Responsible AI & Sign Language Notice */}
-      <div className="p-4 rounded-xl bg-slate-950/80 border border-slate-800 text-xs text-slate-400 space-y-2">
-        <div className="flex items-center gap-2 text-slate-300 font-bold">
-          <Info className="w-4 h-4 text-teal-400" />
-          <span>Important Notice: HCI Interface vs. Sign Language Translation</span>
+      {/* Static HCI vs Sign Language Disclaimer */}
+      <div className="p-3.5 rounded-lg bg-[#FFF7E8] border-2 border-[#17151B] text-xs text-[#655E68] space-y-1">
+        <div className="flex items-center gap-1.5 text-[#17151B] font-black uppercase text-[11px]">
+          <Info className="w-3.5 h-3.5 text-[#FF7048]" />
+          <span>HCI Interface Notice</span>
         </div>
         <p className="leading-relaxed">
-          GestureGo uses a curated set of 7 static hand poses engineered specifically for kiosk
-          navigation ergonomics and high computer vision confidence. This system is
-          <strong> not an American Sign Language (ASL) or British Sign Language (BSL) translation system</strong>.
-          It does not recognize facial expressions, grammar, dynamic hand paths, or non-manual markers
-          essential to natural sign languages.
+          GestureGo uses an engineered set of 8 static poses designed specifically for touchless public kiosk navigation. It is <strong>not a Sign Language (ASL/BSL) translation system</strong> and does not track facial grammar, trajectory signs, or linguistic markers.
         </p>
       </div>
     </div>

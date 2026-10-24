@@ -1,6 +1,15 @@
 import React from 'react';
 import { KioskAction } from '../types';
-import { Home, ArrowRight, Calendar, Check, CornerUpLeft, XCircle, HelpCircle } from 'lucide-react';
+import {
+  Home,
+  ArrowRight,
+  Calendar,
+  Check,
+  CornerUpLeft,
+  ArrowDown,
+  XCircle,
+  HelpCircle,
+} from 'lucide-react';
 
 interface ManualControlsProps {
   onAction: (action: KioskAction, source: 'manual') => void;
@@ -8,84 +17,97 @@ interface ManualControlsProps {
 }
 
 export const ManualControls: React.FC<ManualControlsProps> = ({ onAction, lastAction }) => {
-  const buttons: { action: KioskAction; label: string; gestureHint: string; icon: React.ReactNode; color: string }[] = [
+  const controls: {
+    action: KioskAction;
+    label: string;
+    gestureLabel: string;
+    icon: React.ReactNode;
+    bgHover: string;
+  }[] = [
     {
-      action: 'GO_HOME',
+      action: 'HOME',
       label: 'Home',
-      gestureHint: 'Open Palm ✋',
-      icon: <Home className="w-4 h-4" />,
-      color: 'hover:border-teal-500/50 hover:bg-teal-500/10 text-teal-300',
+      gestureLabel: 'Open Palm ✋',
+      icon: <Home className="w-3.5 h-3.5 stroke-[2.5]" />,
+      bgHover: 'hover:bg-[#D8FF4F]',
     },
     {
-      action: 'NEXT_ITEM',
-      label: 'Next',
-      gestureHint: 'Point Up ☝️',
-      icon: <ArrowRight className="w-4 h-4" />,
-      color: 'hover:border-cyan-500/50 hover:bg-cyan-500/10 text-cyan-300',
+      action: 'NEXT_PAGE',
+      label: 'Next Page',
+      gestureLabel: 'Point Up ☝️',
+      icon: <ArrowRight className="w-3.5 h-3.5 stroke-[2.5]" />,
+      bgHover: 'hover:bg-[#D8FF4F]',
     },
     {
       action: 'OPEN_SCHEDULE',
       label: 'Schedule',
-      gestureHint: 'Victory ✌️',
-      icon: <Calendar className="w-4 h-4" />,
-      color: 'hover:border-indigo-500/50 hover:bg-indigo-500/10 text-indigo-300',
+      gestureLabel: 'Victory ✌️',
+      icon: <Calendar className="w-3.5 h-3.5 stroke-[2.5]" />,
+      bgHover: 'hover:bg-[#E9E0FF]',
     },
     {
-      action: 'CONFIRM',
+      action: 'CONFIRM_OR_SELECT',
       label: 'Confirm',
-      gestureHint: 'Thumbs Up 👍',
-      icon: <Check className="w-4 h-4" />,
-      color: 'hover:border-emerald-500/50 hover:bg-emerald-500/10 text-emerald-300',
+      gestureLabel: 'Thumbs Up 👍',
+      icon: <Check className="w-3.5 h-3.5 stroke-[2.5]" />,
+      bgHover: 'hover:bg-[#D8FF4F]',
     },
     {
-      action: 'GO_BACK',
+      action: 'BACK',
       label: 'Back',
-      gestureHint: 'Closed Fist ✊',
-      icon: <CornerUpLeft className="w-4 h-4" />,
-      color: 'hover:border-amber-500/50 hover:bg-amber-500/10 text-amber-300',
+      gestureLabel: 'Closed Fist ✊',
+      icon: <CornerUpLeft className="w-3.5 h-3.5 stroke-[2.5]" />,
+      bgHover: 'hover:bg-[#E9E0FF]',
+    },
+    {
+      action: 'SCROLL_DOWN',
+      label: 'Scroll Down',
+      gestureLabel: 'Point Down 👇',
+      icon: <ArrowDown className="w-3.5 h-3.5 stroke-[2.5]" />,
+      bgHover: 'hover:bg-[#D8FF4F]',
     },
     {
       action: 'CANCEL',
       label: 'Cancel',
-      gestureHint: 'Thumbs Down 👎',
-      icon: <XCircle className="w-4 h-4" />,
-      color: 'hover:border-rose-500/50 hover:bg-rose-500/10 text-rose-300',
+      gestureLabel: 'Thumbs Down 👎',
+      icon: <XCircle className="w-3.5 h-3.5 stroke-[2.5]" />,
+      bgHover: 'hover:bg-[#FF7048]',
     },
     {
       action: 'OPEN_HELP',
       label: 'Help',
-      gestureHint: 'I Love You 🤟',
-      icon: <HelpCircle className="w-4 h-4" />,
-      color: 'hover:border-purple-500/50 hover:bg-purple-500/10 text-purple-300',
+      gestureLabel: 'Love You 🤟',
+      icon: <HelpCircle className="w-3.5 h-3.5 stroke-[2.5]" />,
+      bgHover: 'hover:bg-[#B8A0FF]',
     },
   ];
 
   return (
-    <div className="bg-slate-900/70 border border-slate-800 rounded-xl p-2.5 shadow-sm">
-      <div className="flex items-center justify-between mb-2 px-1">
-        <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+    <div className="bg-white border-2 border-[#17151B] p-2.5 rounded-lg ink-shadow">
+      <div className="flex items-center justify-between px-1 mb-2">
+        <span className="text-[11px] font-black uppercase tracking-wider text-[#17151B]">
           Manual Fallback Navigation (Always Available)
         </span>
         {lastAction && (
-          <span className="text-xs text-slate-400">
-            Last Executed: <strong className="text-emerald-400 font-mono">{lastAction}</strong>
+          <span className="text-[11px] font-mono text-[#655E68]">
+            Last Action: <strong className="text-[#17151B] bg-[#D8FF4F] px-1 py-0.5 rounded border border-[#17151B]">{lastAction}</strong>
           </span>
         )}
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
-        {buttons.map((b) => (
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-1.5">
+        {controls.map((c) => (
           <button
-            key={b.action}
-            onClick={() => onAction(b.action, 'manual')}
-            className={`flex flex-col items-center justify-center p-2 rounded-lg bg-slate-800/80 border border-slate-700/80 transition-all active:scale-95 group text-slate-200 ${b.color}`}
+            key={c.action}
+            onClick={() => onAction(c.action, 'manual')}
+            className={`p-2 rounded border-2 border-[#17151B] bg-[#FFF7E8] ${c.bgHover} text-[#17151B] transition-transform active:translate-y-0.5 flex flex-col items-center justify-center text-center cursor-pointer`}
           >
-            <div className="flex items-center gap-1.5 font-bold text-xs">
-              {b.icon}
-              <span>{b.label}</span>
+            <div className="flex items-center gap-1 font-extrabold text-xs">
+              {c.icon}
+              <span className="truncate">{c.label}</span>
             </div>
-            <span className="text-[10px] text-slate-400 group-hover:text-slate-300 font-mono mt-0.5">
-              {b.gestureHint}
+            <span className="text-[10px] font-mono text-[#655E68] mt-0.5 whitespace-nowrap">
+              {c.gestureLabel}
             </span>
           </button>
         ))}

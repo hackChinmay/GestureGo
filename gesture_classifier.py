@@ -174,6 +174,12 @@ class GestureClassifier:
                 probs["POINTING_UP"] = 0.91
                 return "POINTING_UP", 0.91, probs
 
+        # 3b. POINTING_DOWN: Index extended pointing downwards, others curled
+        if not ext["middle"] and not ext["ring"] and not ext["pinky"]:
+            if pt(8)[1] > pt(5)[1] + 0.12 or (ext["index"] and pt(8)[1] > pt(6)[1]):
+                probs["POINTING_DOWN"] = 0.92
+                return "POINTING_DOWN", 0.92, probs
+
         # 4. VICTORY: Index and middle extended, ring and pinky curled
         if (
             ext["index"]

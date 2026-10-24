@@ -3,6 +3,7 @@ app.py - GestureGo Touchless AI Campus Assistant (Streamlit Kiosk & Dashboard).
 
 A touchless campus information kiosk driven by confidence-aware
 computer vision, temporal stability, and one-shot execution.
+Redesigned with the Swiss poster editorial design language.
 
 Launch locally with:
     streamlit run app.py
@@ -19,6 +20,7 @@ from gesture_classifier import GestureClassifier
 from campus_data import (
     EVENT_INFO,
     GESTURE_DEFINITIONS,
+    PAGE_ORDER,
     SCHEDULE_ITEMS,
     CAMPUS_VENUES,
     EVENT_STALLS,
@@ -28,51 +30,47 @@ from campus_data import (
 # Page configuration
 st.set_page_config(
     page_title="GestureGo — Touchless AI Campus Assistant",
-    page_icon="🖐️",
+    page_icon="✋",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
-# Custom styling for high-contrast kiosk navy/teal/white aesthetic
+# Custom styling for Swiss poster editorial aesthetic (warm paper #FFF7E8, ink #17151B, lime #D8FF4F)
 st.markdown(
     """
     <style>
+    .stApp {
+        background-color: #FFF7E8;
+        color: #17151B;
+        font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+    }
     .kiosk-header {
-        background: linear-gradient(135deg, #0F172A 0%, #1E293B 50%, #0D9488 100%);
-        padding: 24px 32px;
-        border-radius: 12px;
-        color: white;
-        margin-bottom: 24px;
-        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+        background: #FFFFFF;
+        border: 2px solid #17151B;
+        box-shadow: 4px 4px 0px #17151B;
+        padding: 20px 24px;
+        border-radius: 8px;
+        color: #17151B;
+        margin-bottom: 20px;
     }
     .kiosk-badge {
         display: inline-block;
-        padding: 4px 12px;
-        background-color: rgba(20, 184, 166, 0.2);
-        border: 1px solid #14B8A6;
-        border-radius: 9999px;
-        color: #2DD4BF;
-        font-size: 0.85rem;
-        font-weight: 600;
-        margin-right: 8px;
+        padding: 3px 10px;
+        background-color: #D8FF4F;
+        border: 1px solid #17151B;
+        border-radius: 4px;
+        color: #17151B;
+        font-size: 0.8rem;
+        font-weight: 800;
+        margin-right: 6px;
     }
-    .telemetry-card {
-        background: #1E293B;
-        border: 1px solid #334155;
-        border-radius: 10px;
+    .card-surface {
+        background: #FFFFFF;
+        border: 2px solid #17151B;
+        box-shadow: 3px 3px 0px #17151B;
+        border-radius: 8px;
         padding: 16px;
-        color: #F8FAFC;
     }
-    .metric-value {
-        font-size: 1.8rem;
-        font-weight: 700;
-        color: #38BDF8;
-    }
-    .state-badge-idle { background-color: #64748B; color: white; padding: 4px 10px; border-radius: 6px; }
-    .state-badge-candidate { background-color: #F59E0B; color: white; padding: 4px 10px; border-radius: 6px; }
-    .state-badge-confirmed { background-color: #10B981; color: white; padding: 4px 10px; border-radius: 6px; }
-    .state-badge-locked { background-color: #EF4444; color: white; padding: 4px 10px; border-radius: 6px; }
-    .state-badge-rearmed { background-color: #06B6D4; color: white; padding: 4px 10px; border-radius: 6px; }
     </style>
     """,
     unsafe_allow_html=True,
@@ -82,9 +80,10 @@ st.markdown(
 if "controller" not in st.session_state:
     st.session_state.controller = GestureController(
         confidence_threshold=0.80,
-        stability_duration_sec=0.40,
-        required_stable_frames=6,
-        cooldown_sec=0.35,
+        stability_duration_sec=0.35,
+        required_stable_frames=7,
+        cooldown_sec=0.30,
+        required_neutral_frames=3,
     )
 
 if "classifier" not in st.session_state:
@@ -105,68 +104,77 @@ if "history_stack" not in st.session_state:
 if "camera_active" not in st.session_state:
     st.session_state.camera_active = False
 
-# Action Dispatcher
-def execute_action(action: str, source: str = "gesture"):
-    """Executes a kiosk navigation or interaction command."""
-    prev = st.session_state.current_page
+if "scroll_notice" not in st.session_state:
+    st.session_state.scroll_notice = None
 
-    if action == "GO_HOME":
-        st.session_state.history_stack.append("Home")
-        st.session_state.current_page = "Home"
+# Centralized Action Dispatcher
+def execute_action(action: str, source: str = "gesture"):
+    """Executes a centralized kiosk navigation or interaction command."""
+    if action in ("HOME", "GO_HOME"):
+        if st.session_state.current_page != "Home":
+            st.session_state.current_page = "Home"
+            st.session_state.history_stack.append("Home")
         st.session_state.confirmed_modal = None
 
-    elif action == "NEXT_ITEM":
-        if st.session_state.current_page == "Schedule":
-            st.session_state.selected_schedule_index = (
-                st.session_state.selected_schedule_index + 1
-            ) % len(SCHEDULE_ITEMS)
-        else:
-            pages = ["Home", "Schedule", "Venues", "Stalls", "Contacts", "Help"]
-            idx = pages.index(st.session_state.current_page) if st.session_state.current_page in pages else 0
-            st.session_state.current_page = pages[(idx + 1) % len(pages)]
-            st.session_state.history_stack.append(st.session_state.current_page)
+    elif action in ("NEXT_PAGE", "NEXT_ITEM"):
+        # Real next-page navigation along PAGE_ORDER
+        pages = list(PAGE_ORDER)
+        cur_idx = pages.index(st.session_state.current_page) if st.session_state.current_page in pages else 0
+        next_page = pages[(cur_idx + 1) % len(pages)]
+        st.session_state.current_page = next_page
+        st.session_state.history_stack.append(next_page)
+
+    elif action == "SCROLL_DOWN":
+        st.session_state.scroll_notice = f"Scrolled {st.session_state.current_page} down (65%)"
 
     elif action == "OPEN_SCHEDULE":
-        st.session_state.history_stack.append("Schedule")
-        st.session_state.current_page = "Schedule"
+        if st.session_state.current_page != "Schedule":
+            st.session_state.current_page = "Schedule"
+            st.session_state.history_stack.append("Schedule")
 
-    elif action == "CONFIRM":
+    elif action in ("CONFIRM_OR_SELECT", "CONFIRM"):
         if st.session_state.current_page == "Schedule":
             item = SCHEDULE_ITEMS[st.session_state.selected_schedule_index]
             st.session_state.confirmed_modal = f"Registered for: {item['title']} ({item['location']})"
         else:
             st.session_state.confirmed_modal = f"Action confirmed on {st.session_state.current_page}"
 
-    elif action == "GO_BACK":
+    elif action in ("BACK", "GO_BACK"):
         if len(st.session_state.history_stack) > 1:
             st.session_state.history_stack.pop()
             st.session_state.current_page = st.session_state.history_stack[-1]
         else:
-            st.session_state.current_page = "Home"
+            pages = list(PAGE_ORDER)
+            cur_idx = pages.index(st.session_state.current_page) if st.session_state.current_page in pages else 0
+            prev_page = pages[(cur_idx - 1) % len(pages)]
+            st.session_state.current_page = prev_page
+            st.session_state.history_stack = [prev_page]
         st.session_state.confirmed_modal = None
 
     elif action == "CANCEL":
         st.session_state.confirmed_modal = None
+        st.session_state.scroll_notice = None
 
     elif action == "OPEN_HELP":
-        st.session_state.history_stack.append("Help")
-        st.session_state.current_page = "Help"
+        if st.session_state.current_page != "Help":
+            st.session_state.current_page = "Help"
+            st.session_state.history_stack.append("Help")
 
 # Sidebar: Controls & Live Settings
 with st.sidebar:
     st.markdown("### 🖐️ GestureGo Navigation")
-    st.caption("Active Mode: Touchless Kiosk")
+    st.caption("Active Mode: Touchless Kiosk (Swiss Editorial)")
 
-    # Destination Picker
     nav_selection = st.radio(
-        "Direct Navigation (Fallback)",
-        options=["Home", "Schedule", "Venues", "Stalls", "Contacts", "Help", "Evaluation"],
-        index=["Home", "Schedule", "Venues", "Stalls", "Contacts", "Help", "Evaluation"].index(
-            st.session_state.current_page if st.session_state.current_page in ["Home", "Schedule", "Venues", "Stalls", "Contacts", "Help", "Evaluation"] else "Home"
+        "Page Sequence (PAGE_ORDER)",
+        options=list(PAGE_ORDER),
+        index=list(PAGE_ORDER).index(
+            st.session_state.current_page if st.session_state.current_page in PAGE_ORDER else "Home"
         ),
     )
     if nav_selection != st.session_state.current_page:
         st.session_state.current_page = nav_selection
+        st.session_state.history_stack.append(nav_selection)
 
     st.divider()
     st.markdown("### ⚙️ Decision Layer Settings")
@@ -176,7 +184,6 @@ with st.sidebar:
         max_value=0.98,
         value=st.session_state.controller.confidence_threshold,
         step=0.02,
-        help="Rejects any gesture prediction scored below this value.",
     )
     st.session_state.controller.set_confidence_threshold(conf_thresh)
 
@@ -186,7 +193,6 @@ with st.sidebar:
         max_value=1.20,
         value=st.session_state.controller.stability_duration_sec,
         step=0.05,
-        help="Time a candidate gesture must be steadily held before triggering.",
     )
     req_frames = st.slider(
         "Required Stable Frames",
@@ -198,33 +204,36 @@ with st.sidebar:
     st.session_state.controller.set_stability_requirements(stability_sec, req_frames)
 
     st.divider()
-    st.markdown("### 🧠 Active Classifier")
     active_backend = st.session_state.classifier.active_backend
     if active_backend == "CUSTOM_XGBOOST":
-        st.success("🟢 Custom XGBoost Model Active")
+        st.success("Custom XGBoost Active")
     else:
-        st.info("🔵 MediaPipe Kinematics Fallback Active")
-        st.caption("Custom model absent or not loaded. Run train_model.py to enable XGBoost.")
+        st.info("MediaPipe Kinematics Fallback Active (supports POINTING_DOWN)")
 
     if st.button("Reset State Machine"):
         st.session_state.controller.reset()
-        st.toast("State machine reset to IDLE.")
+        st.toast("State machine reset to READY.")
 
 # Header Banner
 st.markdown(
     f"""
     <div class="kiosk-header">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
             <div>
-                <span class="kiosk-badge">AI Campus Assistant</span>
-                <span class="kiosk-badge" style="border-color: #38BDF8; color: #38BDF8;">Confidence-Aware</span>
-                <h1 style="margin: 8px 0 4px 0; font-size: 2.2rem; font-weight: 800; letter-spacing: -0.02em;">GestureGo</h1>
-                <p style="margin: 0; opacity: 0.9; font-size: 1rem;">{EVENT_INFO['name']} — {EVENT_INFO['venue']}</p>
+                <span class="kiosk-badge">GestureGo</span>
+                <span class="kiosk-badge" style="background-color: #E9E0FF;">Touchless Campus Guide</span>
+                <h1 style="margin: 8px 0 2px 0; font-size: 2rem; font-weight: 900; letter-spacing: -0.02em; text-transform: uppercase;">
+                    {EVENT_INFO['name']}
+                </h1>
+                <p style="margin: 0; color: #655E68; font-size: 0.9rem; font-weight: 600;">
+                    {EVENT_INFO['venue']} • Current Page: <strong>{st.session_state.current_page}</strong>
+                </p>
             </div>
             <div style="text-align: right;">
-                <div style="font-size: 0.85rem; opacity: 0.8;">CURRENT STATUS</div>
-                <div style="font-size: 1.4rem; font-weight: 700; color: #34D399;">TOUCHLESS READY</div>
-                <div style="font-size: 0.8rem; opacity: 0.7;">State: {st.session_state.controller.state.value}</div>
+                <div style="font-size: 0.75rem; font-family: monospace; color: #655E68;">FSM STATE</div>
+                <div style="font-size: 1.25rem; font-weight: 900; color: #17151B; background: #D8FF4F; padding: 2px 8px; border: 1px solid #17151B; border-radius: 4px;">
+                    {st.session_state.controller.state.value}
+                </div>
             </div>
         </div>
     </div>
@@ -232,92 +241,80 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# Manual Navigation Controls (Always Available Fallback)
-m_col1, m_col2, m_col3, m_col4, m_col5, m_col6, m_col7 = st.columns(7)
-with m_col1:
-    if st.button("🏠 Home (Open Palm)", use_container_width=True):
-        execute_action("GO_HOME", source="manual")
-with m_col2:
-    if st.button("➡️ Next (Point Up)", use_container_width=True):
-        execute_action("NEXT_ITEM", source="manual")
-with m_col3:
-    if st.button("📅 Schedule (Victory)", use_container_width=True):
+# Manual Navigation Controls (8 Centralized Controls)
+m1, m2, m3, m4, m5, m6, m7, m8 = st.columns(8)
+with m1:
+    if st.button("🏠 Home", use_container_width=True):
+        execute_action("HOME", source="manual")
+with m2:
+    if st.button("➡️ Next Page", use_container_width=True):
+        execute_action("NEXT_PAGE", source="manual")
+with m3:
+    if st.button("📅 Schedule", use_container_width=True):
         execute_action("OPEN_SCHEDULE", source="manual")
-with m_col4:
-    if st.button("✅ Confirm (Thumbs Up)", use_container_width=True):
-        execute_action("CONFIRM", source="manual")
-with m_col5:
-    if st.button("⬅️ Back (Closed Fist)", use_container_width=True):
-        execute_action("GO_BACK", source="manual")
-with m_col6:
-    if st.button("❌ Cancel (Thumbs Down)", use_container_width=True):
+with m4:
+    if st.button("✅ Confirm", use_container_width=True):
+        execute_action("CONFIRM_OR_SELECT", source="manual")
+with m5:
+    if st.button("⬅️ Back", use_container_width=True):
+        execute_action("BACK", source="manual")
+with m6:
+    if st.button("⬇️ Scroll Down", use_container_width=True):
+        execute_action("SCROLL_DOWN", source="manual")
+with m7:
+    if st.button("❌ Cancel", use_container_width=True):
         execute_action("CANCEL", source="manual")
-with m_col7:
-    if st.button("❓ Help (I Love You)", use_container_width=True):
+with m8:
+    if st.button("❓ Help", use_container_width=True):
         execute_action("OPEN_HELP", source="manual")
 
 if st.session_state.confirmed_modal:
     st.info(f"🔔 **Notification:** {st.session_state.confirmed_modal}")
 
-# Main Layout: 2 Columns (Live Camera & Telemetry | Content Screen)
+if st.session_state.scroll_notice:
+    st.success(f"📜 **Scroll Action:** {st.session_state.scroll_notice}")
+
+# Layout Columns
 col_cam, col_content = st.columns([1, 1.4])
 
 with col_cam:
-    st.subheader("Live Gesture Sensor & Decision Telemetry")
-
-    # Camera control toggle
-    cam_active = st.toggle("Enable Camera Sensor Feed", value=st.session_state.camera_active)
-    st.session_state.camera_active = cam_active
-
-    if cam_active:
-        st.caption("Live sensor input enabled. Processing landmarks via local computer-vision.")
-    else:
-        st.warning("📷 Camera Sensor Paused. Toggle above to activate real-time recognition.")
-
-    # Telemetry metrics row
+    st.subheader("Gesture Sensor & Decision Telemetry")
     ctrl = st.session_state.controller
-    state_color = {
-        "IDLE": "#64748B",
-        "CANDIDATE": "#F59E0B",
-        "CONFIRMED": "#10B981",
-        "LOCKED": "#EF4444",
-        "REARMED": "#06B6D4",
-    }.get(ctrl.state.value, "#64748B")
 
     st.markdown(
         f"""
-        <div style="background: #0F172A; padding: 14px; border-radius: 8px; border: 1px solid #1E293B; margin-bottom: 12px;">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <div>
-                    <span style="font-size: 0.8rem; color: #94A3B8;">CONTROLLER STATE</span>
-                    <div style="font-size: 1.4rem; font-weight: 800; color: {state_color};">{ctrl.state.value}</div>
-                </div>
-                <div>
-                    <span style="font-size: 0.8rem; color: #94A3B8;">CANDIDATE STABILITY</span>
-                    <div style="font-size: 1.4rem; font-weight: 800; color: #38BDF8;">{ctrl.candidate_frames} / {ctrl.required_stable_frames} frames</div>
-                </div>
-                <div>
-                    <span style="font-size: 0.8rem; color: #94A3B8;">LAST ACTION</span>
-                    <div style="font-size: 1.4rem; font-weight: 800; color: #34D399;">{ctrl.last_action or 'None'}</div>
-                </div>
+        <div style="background: #FFFFFF; border: 2px solid #17151B; box-shadow: 2px 2px 0px #17151B; padding: 12px; border-radius: 6px; margin-bottom: 12px;">
+            <div style="display: flex; justify-content: space-between; font-family: monospace; font-size: 0.85rem;">
+                <span>STATE: <strong>{ctrl.state.value}</strong></span>
+                <span>STABILITY: <strong>{ctrl.candidate_frames}/{ctrl.required_stable_frames}</strong></span>
+                <span>LAST ACTION: <strong>{ctrl.last_action or 'None'}</strong></span>
             </div>
-            <div style="margin-top: 8px; font-size: 0.85rem; color: #CBD5E1;">
-                <strong>Rejection Reason:</strong> {ctrl.last_rejection_reason.value}
-                <br/><span style="color: #94A3B8;">{ctrl.last_rejection_detail or 'Awaiting gesture candidate'}</span>
+            <div style="margin-top: 6px; font-size: 0.8rem; color: #655E68;">
+                Reason: {ctrl.last_rejection_reason.value} ({ctrl.last_rejection_detail or 'Active'})
             </div>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
-    # Interactive Gesture Simulator / Test Input for Kiosk Preview
-    st.markdown("#### 🧪 Interactive Gesture Test Input")
-    st.caption("Select a simulated gesture and confidence to test state machine transitions:")
+    # Interactive Simulator with all 8 poses
+    st.markdown("#### 🧪 Gesture Simulator")
     sim_col1, sim_col2 = st.columns([1.5, 1])
     with sim_col1:
         test_gesture = st.selectbox(
             "Simulated Pose",
-            options=["NO_HAND", "OPEN_PALM", "POINTING_UP", "VICTORY", "THUMBS_UP", "CLOSED_FIST", "THUMBS_DOWN", "I_LOVE_YOU", "UNKNOWN"],
+            options=[
+                "NO_HAND",
+                "OPEN_PALM",
+                "POINTING_UP",
+                "POINTING_DOWN",
+                "VICTORY",
+                "THUMBS_UP",
+                "CLOSED_FIST",
+                "THUMBS_DOWN",
+                "I_LOVE_YOU",
+                "UNKNOWN",
+            ],
             index=0,
         )
     with sim_col2:
@@ -326,10 +323,9 @@ with col_cam:
     f_col1, f_col2 = st.columns(2)
     with f_col1:
         if st.button("Send 1 Frame", use_container_width=True):
-            act, tel = ctrl.process_frame(test_gesture, test_conf)
+            act, _ = ctrl.process_frame(test_gesture, test_conf)
             if act:
                 execute_action(act, source="simulated_gesture")
-                st.success(f"Action Fired: {act}")
             st.rerun()
     with f_col2:
         if st.button(f"Hold Pose ({ctrl.required_stable_frames} frames)", use_container_width=True):
@@ -340,169 +336,49 @@ with col_cam:
                     triggered = act
             if triggered:
                 execute_action(triggered, source="simulated_gesture")
-                st.success(f"Action Executed Once: {triggered} (Now LOCKED)")
             st.rerun()
 
+    if st.button("Release Hand (3 neutral frames)", use_container_width=True):
+        for _ in range(3):
+            ctrl.process_frame("NO_HAND", 0.0)
+        st.rerun()
+
     st.markdown("---")
-    st.markdown("#### 🛡️ Anti-Repetition Counters")
-    st.caption("Proves that holding a gesture does not cause repeated clicks:")
-    c_m1, c_m2, c_m3 = st.columns(3)
-    c_m1.metric("Actions Fired", ctrl.total_actions_triggered)
-    c_m2.metric("Repeats Blocked", ctrl.repeated_action_preventions)
-    c_m3.metric("Low-Conf Dropped", ctrl.low_confidence_rejections)
+    st.caption(f"Actions Executed: {ctrl.total_actions_triggered} | Repeats Blocked: {ctrl.repeated_action_preventions}")
 
 with col_content:
-    # Page Content Switching
     cur = st.session_state.current_page
+    st.markdown(f"### {cur} Section")
 
     if cur == "Home":
-        st.subheader("🏛️ Campus Information Kiosk")
-        st.markdown(
-            f"""
-            Welcome to **Apex Tech Con 2026**! GestureGo is a touchless AI assistant designed for public terminals,
-            allowing attendees to navigate without touching the screen.
-            """
-        )
-        st.info("💡 **Tip:** Hold **OPEN_PALM** to return here, or make a **VICTORY (✌️)** sign to view the full schedule.")
-
-        h_col1, h_col2 = st.columns(2)
-        with h_col1:
-            st.markdown(
-                """
-                ### 🚀 Quick Destinations
-                - 📅 **Event Schedule:** Keynotes, tracks & hackathons
-                - 📍 **Venue Map:** Auditoriums, labs & accessible paths
-                - 🎪 **Event Stalls:** Sponsor booths, research exhibits
-                - 📞 **Contacts:** Organizers & campus emergency desk
-                """
-            )
-            if st.button("View Schedule Now", key="h_btn1"):
-                execute_action("OPEN_SCHEDULE")
-                st.rerun()
-        with h_col2:
-            st.markdown(
-                """
-                ### 🖐️ Gesture Reference
-                - **POINTING_UP:** Next item
-                - **THUMBS_UP:** Confirm selection
-                - **CLOSED_FIST:** Back to previous
-                - **THUMBS_DOWN:** Cancel operation
-                - **I_LOVE_YOU:** Open help guide
-                """
-            )
+        st.write("Welcome to Apex Tech Con 2026. Use POINTING_UP to advance page-by-page, or POINTING_DOWN to scroll.")
+        for item in SCHEDULE_ITEMS[:3]:
+            st.markdown(f"- **{item['time']}**: {item['title']} ({item['location']})")
 
     elif cur == "Schedule":
-        st.subheader("📅 Event & Keynote Schedule")
-        st.caption("Use POINTING_UP to cycle through items, THUMBS_UP to register/confirm.")
-
-        for idx, item in enumerate(SCHEDULE_ITEMS):
-            is_selected = (idx == st.session_state.selected_schedule_index)
-            border_style = "border: 2px solid #0D9488; background: #134E4A22;" if is_selected else "border: 1px solid #334155;"
-
-            st.markdown(
-                f"""
-                <div style="{border_style} padding: 14px; border-radius: 8px; margin-bottom: 10px;">
-                    <div style="display: flex; justify-content: space-between;">
-                        <span style="font-weight: 700; font-size: 1.1rem; color: #F8FAFC;">{item['title']}</span>
-                        <span style="color: #2DD4BF; font-weight: 600;">{item['time']}</span>
-                    </div>
-                    <div style="margin-top: 4px; font-size: 0.9rem; color: #94A3B8;">
-                        🎤 <strong>Speaker:</strong> {item['speaker']} | 📍 <strong>Location:</strong> {item['location']} | 🏷️ <em>{item['track']}</em>
-                    </div>
-                    <div style="margin-top: 6px;">
-                        {'<span style="background: #0D9488; color: white; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem;">CURRENTLY SELECTED</span>' if is_selected else ''}
-                    </div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
+        for item in SCHEDULE_ITEMS:
+            st.markdown(f"**{item['time']}** — {item['title']} ({item['location']})")
+            st.caption(item.get("description", ""))
 
     elif cur == "Venues":
-        st.subheader("📍 Campus Venues & Accessibility")
         for v in CAMPUS_VENUES:
-            with st.expander(f"{v['name']} — {v['building']}", expanded=True):
-                st.markdown(f"**Floor / Area:** {v['floor']} | **Capacity:** {v['capacity']}")
-                st.markdown(f"**Features:** {', '.join(v['features'])}")
-                st.markdown(f"**Directions:** {v['directions']}")
+            st.markdown(f"**{v['name']}** — {v['building']} ({v['floor']})")
+            st.caption(v['directions'])
 
     elif cur == "Stalls":
-        st.subheader("🎪 Innovation Stalls & Exhibits")
         for s in EVENT_STALLS:
-            st.markdown(
-                f"""
-                <div style="background: #1E293B; border: 1px solid #334155; padding: 12px; border-radius: 8px; margin-bottom: 10px;">
-                    <div style="display: flex; justify-content: space-between;">
-                        <span style="font-weight: 700; color: #38BDF8;">{s['name']}</span>
-                        <span style="background: #334155; color: #E2E8F0; padding: 2px 8px; border-radius: 4px; font-size: 0.8rem;">{s['booth']}</span>
-                    </div>
-                    <p style="margin: 6px 0 0 0; font-size: 0.9rem; color: #CBD5E1;">{s['highlights']}</p>
-                    <div style="font-size: 0.75rem; color: #94A3B8; margin-top: 4px;">Track: {s['category']}</div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
+            st.markdown(f"**{s['name']}** ({s['booth']}) — *{s['category']}*")
+            st.caption(s['highlights'])
 
     elif cur == "Contacts":
-        st.subheader("📞 Organizers & Emergency Assistance")
         for c in ORGANIZER_CONTACTS:
-            st.markdown(
-                f"""
-                <div style="background: #1E293B; border: 1px solid #334155; padding: 12px; border-radius: 8px; margin-bottom: 10px;">
-                    <span style="color: #F59E0B; font-weight: 600; font-size: 0.85rem;">{c['role']}</span>
-                    <div style="font-size: 1.1rem; font-weight: 700; color: white;">{c['name']}</div>
-                    <div style="font-size: 0.9rem; color: #94A3B8;">{c['dept']} • Office: {c['office']}</div>
-                    <div style="font-size: 0.9rem; color: #38BDF8; margin-top: 4px;">✉️ {c['email']} | 📱 {c['phone']}</div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
+            st.markdown(f"**{c['name']}** ({c['role']}) — Office: {c['office']}")
+            st.caption(f"Email: {c['email']} | Phone: {c['phone']}")
 
     elif cur == "Help":
-        st.subheader("❓ Gesture Reference & Kiosk Instructions")
-        st.markdown("All 7 canonical gestures are mapped to kiosk functions:")
-        for name, d in GESTURE_DEFINITIONS.items():
-            st.markdown(
-                f"""
-                <div style="display: flex; align-items: center; justify-content: space-between; background: #0F172A; border: 1px solid #1E293B; padding: 10px 14px; border-radius: 6px; margin-bottom: 6px;">
-                    <div>
-                        <strong style="color: #2DD4BF;">{name}</strong>
-                        <div style="font-size: 0.85rem; color: #94A3B8;">{d['description']}</div>
-                    </div>
-                    <span style="background: #1E293B; color: #38BDF8; padding: 4px 10px; border-radius: 4px; font-weight: 700; font-size: 0.85rem;">{d['action']}</span>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
+        for g, d in GESTURE_DEFINITIONS.items():
+            st.markdown(f"- **{g}** ➔ `{d['action']}`: {d['description']}")
 
     elif cur == "Evaluation":
-        st.subheader("📊 Testing & Faculty Evaluation Dashboard")
-        st.caption("Real performance metrics and state machine diagnostic telemetry.")
-
-        metrics_file = "models/evaluation_metrics.json"
-        if os.path.exists(metrics_file):
-            with open(metrics_file, "r") as f:
-                metrics_data = json.load(f)
-
-            ev1, ev2, ev3 = st.columns(3)
-            ev1.metric("Model Architecture", metrics_data.get("model_type", "Unknown"))
-            ev2.metric("Test Accuracy", f"{metrics_data.get('accuracy', 0.0) * 100:.2f}%")
-            ev3.metric("Macro F1-Score", f"{metrics_data.get('macro_f1', 0.0) * 100:.2f}%")
-
-            st.markdown("#### Confusion Matrix")
-            st.write(metrics_data.get("confusion_matrix"))
-        else:
-            st.info("ℹ️ Status: **Not evaluated yet**. Run `python3 train_model.py` and `python3 evaluate_model.py` to populate formal evaluation metrics.")
-
-        st.markdown("#### Live State Machine Telemetry")
+        st.write("Formal evaluation and trial testing dashboard.")
         st.json(ctrl._telemetry("TEST", 0.95, None, time.time())["counters"])
-
-# Footer
-st.markdown("---")
-st.markdown(
-    """
-    <div style="text-align: center; color: #64748B; font-size: 0.85rem;">
-        GestureGo HCI System • Privacy First: Processed locally in memory • Not for Sign Language translation
-    </div>
-    """,
-    unsafe_allow_html=True,
-)

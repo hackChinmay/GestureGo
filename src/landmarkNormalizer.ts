@@ -80,10 +80,11 @@ export function classifyKinematicGesture(normFeatures: number[]): {
 
   const thumbTip = pt(4);
   const indexTip = pt(8);
+  const indexPip = pt(6);
   const indexMcp = pt(5);
   const middleTip = pt(12);
 
-  // In normalized space, negative Y is UPWARDS on screen
+  // In normalized space, negative Y is UPWARDS on screen, positive Y is DOWNWARDS
   const thumbPointingUp = thumbTip[1] < -0.32;
   const thumbPointingDown = thumbTip[1] > 0.32;
 
@@ -95,6 +96,7 @@ export function classifyKinematicGesture(normFeatures: number[]): {
   const probas: Record<string, number> = {
     OPEN_PALM: 0.05,
     POINTING_UP: 0.05,
+    POINTING_DOWN: 0.05,
     VICTORY: 0.05,
     THUMBS_UP: 0.05,
     CLOSED_FIST: 0.05,
@@ -114,31 +116,42 @@ export function classifyKinematicGesture(normFeatures: number[]): {
     return { gesture: 'CLOSED_FIST', confidence: 0.93, probabilities: probas };
   }
 
-  // 3. POINTING_UP: Index extended up, others curled
+  // 3. POINTING_UP: Index extended up, others curled, index tip higher than knuckle
   if (ext.index && !ext.middle && !ext.ring && !ext.pinky && indexTip[1] < indexMcp[1]) {
     probas.POINTING_UP = 0.92;
     return { gesture: 'POINTING_UP', confidence: 0.92, probabilities: probas };
   }
 
-  // 4. VICTORY: Index and Middle extended in V shape, ring & pinky curled
+  // 4. POINTING_DOWN: Index extended pointing downwards, others curled, index tip lower than knuckle & PIP
+  if (
+    !ext.middle &&
+    !ext.ring &&
+    !ext.pinky &&
+    (indexTip[1] > indexMcp[1] + 0.12 || (ext.index && indexTip[1] > indexPip[1]))
+  ) {
+    probas.POINTING_DOWN = 0.93;
+    return { gesture: 'POINTING_DOWN', confidence: 0.93, probabilities: probas };
+  }
+
+  // 5. VICTORY: Index and Middle extended in V shape, ring & pinky curled
   if (ext.index && ext.middle && !ext.ring && !ext.pinky && indexMiddleDistance > 0.14) {
     probas.VICTORY = 0.94;
     return { gesture: 'VICTORY', confidence: 0.94, probabilities: probas };
   }
 
-  // 5. THUMBS_UP: Thumb extended UP, other 4 fingers curled
+  // 6. THUMBS_UP: Thumb extended UP, other 4 fingers curled
   if (thumbPointingUp && !ext.index && !ext.middle && !ext.ring && !ext.pinky) {
     probas.THUMBS_UP = 0.93;
     return { gesture: 'THUMBS_UP', confidence: 0.93, probabilities: probas };
   }
 
-  // 6. THUMBS_DOWN: Thumb extended DOWN, other 4 fingers curled
+  // 7. THUMBS_DOWN: Thumb extended DOWN, other 4 fingers curled
   if (thumbPointingDown && !ext.index && !ext.middle && !ext.ring && !ext.pinky) {
     probas.THUMBS_DOWN = 0.91;
     return { gesture: 'THUMBS_DOWN', confidence: 0.91, probabilities: probas };
   }
 
-  // 7. I_LOVE_YOU: Thumb, Index, and Pinky extended; Middle and Ring curled
+  // 8. I_LOVE_YOU: Thumb, Index, and Pinky extended; Middle and Ring curled
   if (ext.thumb && ext.index && ext.pinky && !ext.middle && !ext.ring) {
     probas.I_LOVE_YOU = 0.96;
     return { gesture: 'I_LOVE_YOU', confidence: 0.96, probabilities: probas };

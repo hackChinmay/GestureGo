@@ -1,1 +1,60 @@
 @import "tailwindcss";
+
+:root {
+  --color-paper: #FFF7E8;
+  --color-ink: #17151B;
+  --color-lime: #D8FF4F;
+  --color-coral: #FF7048;
+  --color-violet: #B8A0FF;
+  --color-lilac: #E9E0FF;
+  --color-white: #FFFFFF;
+  --color-muted: #655E68;
+  --color-border: #17151B;
+}
+
+body {
+  background-color: #FFF7E8;
+  color: #17151B;
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Custom Swiss Poster utility styling */
+.paper-surface {
+  background-color: #FFF7E8;
+}
+
+.ink-border {
+  border: 2px solid #17151B;
+}
+
+.ink-shadow {
+  box-shadow: 3px 3px 0px #17151B;
+}
+
+.ink-shadow-sm {
+  box-shadow: 2px 2px 0px #17151B;
+}
+
+.ink-shadow-lg {
+  box-shadow: 5px 5px 0px #17151B;
+}
+
+/* Scrollbar customized for editorial theme */
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+::-webkit-scrollbar-track {
+  background: #FFF7E8;
+}
+::-webkit-scrollbar-thumb {
+  background: #17151B;
+  border-radius: 2px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #655E68;
+}
