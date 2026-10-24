@@ -17,6 +17,11 @@ import streamlit as st
 
 from gesture_controller import GestureController, ControllerState, GESTURE_TO_ACTION
 from gesture_classifier import GestureClassifier
+from registration_db import (
+    create_or_get_registration,
+    get_all_registrations,
+    get_registration_by_event,
+)
 from campus_data import (
     EVENT_INFO,
     GESTURE_DEFINITIONS,
@@ -144,9 +149,34 @@ def execute_action(action: str, source: str = "gesture"):
     elif action in ("CONFIRM_OR_SELECT", "CONFIRM"):
         if st.session_state.current_page == "Schedule":
             item = SCHEDULE_ITEMS[st.session_state.selected_schedule_index]
-            st.session_state.confirmed_modal = f"Pass registered for: {item['title']} ({item['location']}) [Demo Mode]"
+            reg, is_new = create_or_get_registration(
+                event_id=item["id"],
+                event_name=item["title"],
+                event_date="October 24–26, 2026",
+                event_time=item["time"],
+                venue=item["location"],
+            )
+            st.session_state.confirmed_modal = {
+                "title": "Registration Confirmed!" if is_new else "Existing Pass Retrieved",
+                "event": item["title"],
+                "code": reg["registration_code"],
+                "time": item["time"],
+                "venue": item["location"],
+                "status": reg["registration_status"],
+                "registered_at": reg["registered_at"],
+                "is_new": is_new,
+            }
         else:
-            st.session_state.confirmed_modal = f"Action confirmed on {st.session_state.current_page}"
+            st.session_state.confirmed_modal = {
+                "title": f"Action Confirmed on {st.session_state.current_page}",
+                "event": st.session_state.current_page,
+                "code": None,
+                "time": "",
+                "venue": "",
+                "status": "CONFIRMED",
+                "registered_at": "",
+                "is_new": False,
+            }
 
     elif action in ("BACK", "GO_BACK"):
         if len(st.session_state.history_stack) > 1:
@@ -278,7 +308,18 @@ with m8:
         execute_action("OPEN_HELP", source="manual")
 
 if st.session_state.confirmed_modal:
-    st.info(f"🔔 **Notification:** {st.session_state.confirmed_modal}")
+    modal = st.session_state.confirmed_modal
+    if isinstance(modal, dict):
+        if modal.get("code"):
+            st.success(
+                f"🎫 **{modal['title']}**\n\n"
+                f"**Event:** {modal['event']}\n\n"
+                f"**Pass Code:** `{modal['code']}` | **Venue:** {modal['venue']} ({modal['time']}) | **Status:** {modal['status']}"
+            )
+        else:
+            st.info(f"🔔 **{modal['title']}**")
+    else:
+        st.info(f"🔔 **Notification:** {modal}")
 
 if st.session_state.scroll_notice:
     st.success(f"📜 **Scroll Action:** {st.session_state.scroll_notice}")
@@ -368,10 +409,19 @@ with col_content:
         sel_idx = st.session_state.selected_schedule_index
         cur_it = SCHEDULE_ITEMS[sel_idx]
         st.info(f"👉 **Selected Event ({sel_idx + 1}/{len(SCHEDULE_ITEMS)}):** {cur_it['title']} ({cur_it['time']})")
+
+        all_regs = get_all_registrations()
+        if all_regs:
+            with st.expander(f"🎫 My Registered Passes ({len(all_regs)})", expanded=False):
+                for r in all_regs:
+                    st.markdown(f"- `{r['registration_code']}` ({r['registration_status']}): **{r['event_name_snapshot']}** — *{r['event_time']}, {r['venue']}*")
+
         for idx, item in enumerate(SCHEDULE_ITEMS):
             is_selected = idx == sel_idx
             prefix = "👉 [SELECTED] " if is_selected else ""
-            st.markdown(f"**{prefix}{item['time']}** — {item['title']} ({item['location']})")
+            reg_info = get_registration_by_event(item["id"])
+            pass_badge = f" `[PASS: {reg_info['registration_code']}]`" if reg_info else ""
+            st.markdown(f"**{prefix}{item['time']}** — {item['title']}{pass_badge} ({item['location']})")
             st.caption(item.get("description", ""))
 
     elif cur == "Venues":

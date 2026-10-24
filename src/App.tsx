@@ -1,5 +1,5 @@
-import React, { useState, useMemo, useCallback, useRef } from 'react';
-import { GestureClass, KioskAction, ControllerTelemetry, ScheduleItem } from './types';
+import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
+import { GestureClass, KioskAction, ControllerTelemetry, ScheduleItem, EventRegistration } from './types';
 import { GestureControllerTS } from './gestureController';
 import {
   GESTURE_DEFINITIONS,
@@ -9,6 +9,7 @@ import {
   getPrevPage,
   SCHEDULE_ITEMS,
 } from './campusData';
+import { loadRegistrations, createOrGetRegistration } from './registrationStore';
 import { Navbar } from './components/Navbar';
 import { ManualControls } from './components/ManualControls';
 import { CameraSensor } from './components/CameraSensor';
@@ -20,6 +21,7 @@ import { ContactsView } from './components/ContactsView';
 import { HelpView } from './components/HelpView';
 import { EvaluationDashboard } from './components/EvaluationDashboard';
 import { CodeExplorerModal } from './components/CodeExplorerModal';
+import { RegistrationPassModal } from './components/RegistrationPassModal';
 import {
   Home,
   Calendar,
@@ -52,7 +54,11 @@ export default function App() {
   const [selectedScheduleId, setSelectedScheduleId] = useState<string>(
     () => SCHEDULE_ITEMS[0]?.id || 's1'
   );
-  const [registeredEventIds, setRegisteredEventIds] = useState<Set<string>>(new Set());
+  const [registrations, setRegistrations] = useState<EventRegistration[]>(() => loadRegistrations());
+  const [activePassModal, setActivePassModal] = useState<{
+    registration: EventRegistration;
+    isNew: boolean;
+  } | null>(null);
 
   // Scroll Container Ref for the active content viewport
   const contentScrollRef = useRef<HTMLDivElement>(null);
@@ -121,7 +127,19 @@ export default function App() {
       source: 'gesture' | 'manual' = 'gesture',
       gesture: GestureClass = 'OPEN_PALM'
     ) => {
-      // If modal is active, only CANCEL or CONFIRM_OR_SELECT can dismiss it
+      // If registration pass modal is open, gestures must NOT trigger background page changes!
+      if (activePassModal) {
+        if (action === 'CANCEL' || action === 'CONFIRM_OR_SELECT') {
+          setActivePassModal(null);
+          setActionToast({ action, gesture, source, timestamp: Date.now() });
+          setTimeout(() => {
+            setActionToast((prev) => (prev && Date.now() - prev.timestamp >= 2500 ? null : prev));
+          }, 2600);
+        }
+        return;
+      }
+
+      // If generic confirmed modal is active, only CANCEL or CONFIRM_OR_SELECT can dismiss it
       if (confirmedModal) {
         if (action === 'CANCEL' || action === 'CONFIRM_OR_SELECT') {
           setConfirmedModal(null);
@@ -176,14 +194,9 @@ export default function App() {
           if (currentPage === 'Schedule') {
             const activeItem =
               SCHEDULE_ITEMS.find((it) => it.id === selectedScheduleId) || SCHEDULE_ITEMS[0];
-            setRegisteredEventIds((prev) => {
-              const updated = new Set(prev);
-              updated.add(activeItem.id);
-              return updated;
-            });
-            setConfirmedModal(
-              `Pass registered for "${activeItem.title}" at ${activeItem.location} (${activeItem.time}) [Demonstration Mode]`
-            );
+            const result = createOrGetRegistration(activeItem);
+            setRegistrations(loadRegistrations());
+            setActivePassModal({ registration: result.registration, isNew: result.isNew });
           } else {
             setConfirmedModal(`Confirmed selection on ${currentPage} section.`);
           }
@@ -257,7 +270,7 @@ export default function App() {
           break;
       }
     },
-    [currentPage, confirmedModal, handleScrollDown, selectedScheduleId]
+    [currentPage, confirmedModal, activePassModal, handleScrollDown, selectedScheduleId]
   );
 
   const navigateDirectly = (page: PageId) => {
@@ -447,16 +460,14 @@ export default function App() {
                 <ScheduleView
                   selectedId={selectedScheduleId}
                   onSelectId={setSelectedScheduleId}
-                  registeredIds={registeredEventIds}
-                  onConfirm={(item) => {
-                    setRegisteredEventIds((prev) => {
-                      const updated = new Set(prev);
-                      updated.add(item.id);
-                      return updated;
-                    });
-                    setConfirmedModal(
-                      `Pass registered for "${item.title}" at ${item.location} (${item.time}) [Demonstration Mode]`
-                    );
+                  registrations={registrations}
+                  onRegister={(item) => {
+                    const res = createOrGetRegistration(item);
+                    setRegistrations(loadRegistrations());
+                    setActivePassModal({ registration: res.registration, isNew: res.isNew });
+                  }}
+                  onViewPass={(reg) => {
+                    setActivePassModal({ registration: reg, isNew: false });
                   }}
                 />
               )}
@@ -509,6 +520,14 @@ export default function App() {
           </button>
         </div>
       </footer>
+
+      {/* Registration Pass Modal */}
+      <RegistrationPassModal
+        isOpen={!!activePassModal}
+        registration={activePassModal?.registration || null}
+        isNewRegistration={activePassModal?.isNew || false}
+        onClose={() => setActivePassModal(null)}
+      />
 
       {/* Code Explorer Modal */}
       <CodeExplorerModal

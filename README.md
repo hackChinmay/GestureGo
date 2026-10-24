@@ -2,7 +2,7 @@
 
 > A touchless campus information kiosk driven by confidence-aware computer vision, temporal stability checks, and one-shot finite state machine execution.
 
-[![Unit Tests](https://img.shields.io/badge/Unit%20Tests-28%2F28%20Passing-22C55E?logo=checkmarx&logoColor=white)](tests/)
+[![Unit Tests](https://img.shields.io/badge/Unit%20Tests-62%2F62%20Passing-22C55E?logo=checkmarx&logoColor=white)](tests/)
 [![Python](https://img.shields.io/badge/Python-3.10%20%7C%203.11-3776AB?logo=python&logoColor=white)](requirements.txt)
 [![Streamlit](https://img.shields.io/badge/Streamlit-1.35+-FF4B4B?logo=streamlit&logoColor=white)](app.py)
 [![OpenCV](https://img.shields.io/badge/OpenCV-4.9+-5C3EE8?logo=opencv&logoColor=white)](requirements.txt)
@@ -120,6 +120,10 @@ GestureGo combines geometric coordinate invariance, a hybrid machine-learning an
 ## 4. Key Features
 
 - **Zero-Touch Navigation:** Full access to event schedules, campus venues, interactive stalls, emergency contacts, and help screens.
+- **Gesture Event Registration & Pass Generation:** Select any event in the Schedule with `POINTING_DOWN` and confirm with `THUMBS_UP` to instantly generate an official delegate pass with a unique collision-free code (`GG-XXXXXXXX`, Crockford 32-character alphabet).
+- **Persistent Local Storage & SQLite Database:** Registrations are saved in browser `localStorage` on the web client and an isolated SQLite table (`registration_db.py`) in the Python kiosk. Duplicate registrations for the same event safely retrieve the existing pass code.
+- **Digital Registration Pass Modal:** High-visibility Swiss poster pass dialog presenting event metadata, unique pass code, copy-to-clipboard functionality, raw text download, and an SVG QR code for touchless kiosk check-in.
+- **Dedicated "My Registrations" View:** In-place sub-navigation tab inside the Schedule section allowing attendees to browse and copy all their registered event passes without altering the 7-page route hierarchy.
 - **Invariant Geometric Features:** 63-element feature vector derived from 21 MediaPipe $(x, y, z)$ coordinates, normalized for distance and position.
 - **Transparent Backend Telemetry:** The interface explicitly reveals whether `CUSTOM_XGBOOST` or `MEDIAPIPE_BUILTIN` kinematic heuristics is executing; it never fabricates an active model state.
 - **Configurable Thresholds:** Adjust confidence thresholds, required stable frames, stability duration, and neutral release frames in real time from the sidebar.
@@ -316,10 +320,26 @@ gesturego---touchless-ai-campus-assistant/
 │   └── gesture_xgboost.joblib          # Artifact path created upon running train_model.py
 ├── scripts/
 │   └── generate_seed_data.py           # Landmark synthesis utility for baseline testing
+├── src/
+│   ├── components/
+│   │   ├── RegistrationPassModal.tsx   # Swiss poster pass dialog with QR code and copy button
+│   │   ├── ScheduleView.tsx            # Synchronized cursor selection & My Registrations view
+│   │   ├── CameraSensor.tsx            # React MediaPipe vision sensor component
+│   │   ├── ManualControls.tsx          # 8-button tactile manual fallback controls
+│   │   └── Navbar.tsx                  # Kiosk header and live FSM status telemetry
+│   ├── registrationStore.ts            # Local persistence engine with Crockford 32-char codes
+│   ├── gestureController.ts            # Client-side 5-state one-shot finite state machine
+│   ├── campusData.ts                   # Campus events, venues, stalls, and navigation orders
+│   └── App.tsx                         # Master touchless kiosk dashboard and dispatcher
 ├── tests/
 │   ├── test_action_mapping.py          # Action dispatching, normalization, and fallback tests
-│   └── test_controller.py              # FSM transitions, one-shot locks, and re-arming tests
+│   ├── test_controller.py              # FSM transitions, one-shot locks, and re-arming tests
+│   ├── test_schedule_navigation.py     # Python schedule navigation & boundary guards
+│   ├── test_registration_db.py         # SQLite persistence & collision prevention tests
+│   ├── test_schedule_interaction.test.mjs # 12 Node.js schedule interaction test scenarios
+│   └── test_registration.test.mjs      # 12 Node.js pass generation and persistence tests
 ├── app.py                              # Streamlit kiosk application and decision telemetry
+├── registration_db.py                  # Parameterized SQLite persistence layer for event passes
 ├── campus_data.py                      # Campus schedule, venues, stalls, contacts, and mappings
 ├── collect_data.py                     # Real-time webcam dataset collector via OpenCV
 ├── evaluate_model.py                   # Evaluation script with latency benchmarking
@@ -514,7 +534,7 @@ Run the test suite using Python's standard `unittest` runner:
 python -m unittest discover -s tests -v
 ```
 
-### Verified Python Unit Test Suite (28/28 Passing):
+### Verified Python Unit Test Suite (38/38 Passing):
 
 ```
 test_classifier_fallback_on_missing_model (test_action_mapping) ... ok
@@ -535,6 +555,16 @@ test_no_hand_handling (test_controller) ........................ ok
 test_rearming_after_sustained_neutral_release (test_controller)  ok
 test_temporal_stability_and_one_shot_execution (test_controller) ok
 test_unknown_gesture_handling (test_controller) ................ ok
+test_code_format_and_alphabet (test_registration_db) ........... ok
+test_create_new_registration (test_registration_db) ............ ok
+test_distinct_codes_for_different_events (test_registration_db)  ok
+test_duplicate_prevention_preserves_code (test_registration_db)  ok
+test_get_all_registrations_order (test_registration_db) ........ ok
+test_invalid_input_validation (test_registration_db) ........... ok
+test_nonexistent_event_lookup_returns_none (test_registration_db) ok
+test_persistence_across_connections (test_registration_db) .... ok
+test_schema_initialization (test_registration_db) .............. ok
+test_sql_injection_resilience (test_registration_db) ........... ok
 test_end_of_list_boundary_guard (test_schedule_navigation) ..... ok
 test_initial_schedule_selection (test_schedule_navigation) ..... ok
 test_invalid_selection_index_fallback (test_schedule_navigation) ok
@@ -547,26 +577,46 @@ test_sequential_advancement_through_all_events (test_schedule) . ok
 test_thumbs_up_confirms_active_selection (test_schedule) ....... ok
 
 ----------------------------------------------------------------------
-Ran 28 tests in 0.001s
+Ran 38 tests in 0.151s
 
 OK
 ```
 
-### Verified TypeScript / Web Client Test Suite (12/12 Scenarios Passing):
+### Verified TypeScript / Web Client Test Suites (24/24 Scenarios Passing):
 
+#### 1. Event Schedule Navigation & Cursor Selection (`tests/test_schedule_interaction.test.mjs` — 12/12):
 ```bash
 npx tsx --test tests/test_schedule_interaction.test.mjs
 ```
 - Opening Schedule selects valid initial event (`s1`).
 - `POINTING_DOWN` advances selected event by exactly one.
-- Newly selected event becomes visible and synchronizes with container scroll.
+- Newly selected event corresponds to correct item metadata and becomes visible.
 - Repeated `POINTING_DOWN` gestures advance selection sequentially (`s1` ➔ `s7`).
-- Holding `POINTING_DOWN` does not skip multiple events (One-Shot FSM).
+- Holding `POINTING_DOWN` does not skip multiple events (One-Shot FSM anti-repeat).
+- Selection remains synchronized with stable event IDs.
 - Final event retains selection without out-of-bounds error.
 - `THUMBS_UP` confirms/registers active selected event (e.g. `s5`), not always the first event.
 - `POINTING_UP` still navigates to next page along `PAGE_ORDER`.
 - `POINTING_DOWN` on other pages scrolls without altering route.
+- Re-arming after neutral release allows subsequent selection advance.
 - Missing or invalid event IDs resolve safely to initial fallback.
+
+#### 2. Event Registration & Pass Code Generation (`tests/test_registration.test.mjs` — 12/12):
+```bash
+npx tsx --test tests/test_registration.test.mjs
+```
+- Registering for an event returns a valid `EventRegistration` object.
+- Code conforms strictly to format `GG-XXXXXXXX` using 32-character Crockford alphabet (no ambiguous 0/O, 1/I/L).
+- Generated registration codes are unique across multiple registrations with collision avoidance.
+- Registering for the same event multiple times returns existing registration without creating duplicates.
+- Reopening the pass dialog for an already registered event preserves the exact same code.
+- Registering for different events produces distinct codes for each event.
+- Registration state is successfully persisted to browser `localStorage`.
+- Corrupted or invalid `localStorage` data fails safely to an empty array.
+- "My Registrations" retrieves all registered passes in chronological order.
+- One-shot controller fires registration once without creating rapid duplicates when holding pose.
+- Background navigation gestures are ignored while registration modal is active.
+- `saveRegistrations` safely handles empty arrays and preserves record integrity.
 
 ### Verified Behaviours Covered:
 - **One-Shot Execution:** Holding a gesture for consecutive frames triggers the action exactly once; subsequent frames in `LOCKED_HOLD` state are rejected.

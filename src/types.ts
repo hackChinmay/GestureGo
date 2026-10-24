@@ -124,3 +124,15 @@ export interface EvaluationRecord {
   latencyMs: number;
   rejectionReason: RejectionReason;
 }
+
+export interface EventRegistration {
+  registrationId: string;
+  registrationCode: string;
+  eventId: string;
+  eventNameSnapshot: string;
+  eventDate: string;
+  eventTime: string;
+  venue: string;
+  registrationStatus: 'CONFIRMED' | 'ACTIVE';
+  registeredAt: string;
+}
