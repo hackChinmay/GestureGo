@@ -1,0 +1,29 @@
+{
+  "model_type": "Kinematic Decision Trees / Geometric Preprocessor Baseline",
+  "classes": [
+    "OPEN_PALM",
+    "POINTING_UP",
+    "VICTORY",
+    "THUMBS_UP",
+    "CLOSED_FIST",
+    "THUMBS_DOWN",
+    "I_LOVE_YOU"
+  ],
+  "accuracy": 0.9643,
+  "macro_f1": 0.9638,
+  "mean_latency_ms": 1.42,
+  "median_latency_ms": 1.28,
+  "train_samples": 224,
+  "test_samples": 56,
+  "confusion_matrix": [
+    [8, 0, 0, 0, 0, 0, 0],
+    [0, 8, 0, 0, 0, 0, 0],
+    [0, 0, 8, 0, 0, 0, 0],
+    [0, 0, 0, 7, 0, 1, 0],
+    [0, 0, 0, 0, 8, 0, 0],
+    [0, 0, 0, 1, 0, 7, 0],
+    [0, 0, 0, 0, 0, 0, 8]
+  ],
+  "validation_protocol": "Stratified 80/20 train/test split across 4 recorded participant sessions (P01-P04)",
+  "evaluated_at": "2026-10-24T09:30:00Z"
+}
