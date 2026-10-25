@@ -1,0 +1,662 @@
+-- ====================================================================
+-- Migration: 20261025000001_gravitas_schema.sql
+-- Description: Core schema for graVITas '26 at VIT Vellore.
+-- Includes venues, events, event_photos, and event_registrations.
+-- ====================================================================
+
+-- Enable pgcrypto / uuid-ossp if not already enabled
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
+-- --------------------------------------------------------------------
+-- 1. VENUES TABLE
+-- Real VIT Vellore campus locations verified from official event listings
+-- --------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS public.venues (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name TEXT NOT NULL,
+    building_name TEXT,
+    block_name TEXT,
+    floor TEXT,
+    room_number TEXT,
+    campus TEXT NOT NULL DEFAULT 'VIT Vellore',
+    address_description TEXT,
+    directions TEXT,
+    latitude NUMERIC(10, 7),
+    longitude NUMERIC(10, 7),
+    official_map_url TEXT,
+    source_url TEXT,
+    verification_status TEXT NOT NULL DEFAULT 'verified' CHECK (verification_status IN ('verified', 'partially_verified', 'unverified')),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+-- --------------------------------------------------------------------
+-- 2. EVENTS TABLE
+-- Official graVITas '26 event details
+-- --------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS public.events (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    slug TEXT UNIQUE NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT NOT NULL,
+    short_description TEXT,
+    category TEXT NOT NULL CHECK (category IN ('hackathon', 'workshop', 'competition', 'games', 'entrepreneurship', 'other')),
+    organizer_name TEXT NOT NULL,
+    festival_name TEXT NOT NULL DEFAULT 'graVITas ''26',
+    festival_year INTEGER NOT NULL DEFAULT 2026,
+    start_date DATE NOT NULL,
+    end_date DATE,
+    start_time TIME,
+    end_time TIME,
+    venue_id UUID REFERENCES public.venues(id) ON DELETE SET NULL,
+    registration_fee_inr NUMERIC(10, 2),
+    min_team_size INTEGER,
+    max_team_size INTEGER,
+    registration_url TEXT,
+    official_event_url TEXT NOT NULL,
+    event_status TEXT NOT NULL DEFAULT 'completed' CHECK (event_status IN ('scheduled', 'completed', 'cancelled', 'unknown')),
+    data_source TEXT NOT NULL,
+    last_verified_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+-- --------------------------------------------------------------------
+-- 3. EVENT_PHOTOS TABLE
+-- Event posters, gallery photographs, and archival media
+-- --------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS public.event_photos (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    event_id UUID REFERENCES public.events(id) ON DELETE CASCADE,
+    filename TEXT NOT NULL,
+    storage_path TEXT NOT NULL,
+    bucket_name TEXT NOT NULL DEFAULT 'gravitas-event-photos',
+    caption TEXT,
+    alt_text TEXT NOT NULL,
+    image_type TEXT NOT NULL CHECK (image_type IN ('poster', 'event_photo', 'gallery_photo', 'banner')),
+    source_url TEXT NOT NULL,
+    credit TEXT,
+    is_primary BOOLEAN NOT NULL DEFAULT false,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+-- --------------------------------------------------------------------
+-- 4. EVENT_REGISTRATIONS TABLE (Touchless Kiosk & Demo Registrations)
+-- --------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS public.event_registrations (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    event_id UUID NOT NULL REFERENCES public.events(id) ON DELETE CASCADE,
+    user_id UUID,
+    registration_code TEXT UNIQUE NOT NULL,
+    status TEXT NOT NULL DEFAULT 'CONFIRMED' CHECK (status IN ('CONFIRMED', 'CANCELLED', 'ACTIVE')),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+-- --------------------------------------------------------------------
+-- 5. PERFORMANCE INDEXES
+-- --------------------------------------------------------------------
+CREATE INDEX IF NOT EXISTS idx_events_venue_id ON public.events(venue_id);
+CREATE INDEX IF NOT EXISTS idx_events_category ON public.events(category);
+CREATE INDEX IF NOT EXISTS idx_events_start_date ON public.events(start_date);
+CREATE INDEX IF NOT EXISTS idx_events_slug ON public.events(slug);
+CREATE INDEX IF NOT EXISTS idx_event_photos_event_id ON public.event_photos(event_id);
+CREATE INDEX IF NOT EXISTS idx_event_photos_is_primary ON public.event_photos(is_primary);
+CREATE INDEX IF NOT EXISTS idx_event_registrations_event_id ON public.event_registrations(event_id);
+CREATE INDEX IF NOT EXISTS idx_event_registrations_code ON public.event_registrations(registration_code);
+
+-- --------------------------------------------------------------------
+-- 6. ROW LEVEL SECURITY (RLS) POLICIES
+-- --------------------------------------------------------------------
+ALTER TABLE public.venues ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.event_photos ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.event_registrations ENABLE ROW LEVEL SECURITY;
+
+-- Public read access for published festival content
+CREATE POLICY "Allow public read access on venues"
+    ON public.venues FOR SELECT
+    USING (true);
+
+CREATE POLICY "Allow public read access on events"
+    ON public.events FOR SELECT
+    USING (true);
+
+CREATE POLICY "Allow public read access on event_photos"
+    ON public.event_photos FOR SELECT
+    USING (true);
+
+-- Event registration policies: public insert for kiosk delegates, scoped select
+CREATE POLICY "Allow public insert on event_registrations"
+    ON public.event_registrations FOR INSERT
+    WITH CHECK (true);
+
+CREATE POLICY "Allow users to read event registrations"
+    ON public.event_registrations FOR SELECT
+    USING (true);
+
+-- --------------------------------------------------------------------
+-- 7. STORAGE BUCKET CONFIGURATION (Supabase Storage)
+-- --------------------------------------------------------------------
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.schemata WHERE schema_name = 'storage') THEN
+        INSERT INTO storage.buckets (id, name, public)
+        VALUES ('gravitas-event-photos', 'gravitas-event-photos', true)
+        ON CONFLICT (id) DO NOTHING;
+    END IF;
+END $$;
+-- ====================================================================
+-- Migration: 20261025000002_seed_gravitas_data.sql
+-- Description: Repeatable seed data for verified graVITas '26 events,
+-- real VIT Vellore campus venues, and event photograph metadata.
+-- ====================================================================
+
+-- --------------------------------------------------------------------
+-- 1. INSERT VERIFIED VIT VELLORE VENUES
+-- --------------------------------------------------------------------
+INSERT INTO public.venues (
+    id, name, building_name, block_name, floor, room_number, campus,
+    address_description, directions, latitude, longitude, official_map_url,
+    source_url, verification_status
+) VALUES
+(
+    '00000000-0000-0000-0000-000000000001',
+    'Bhagat Singh Gallery',
+    'Silver Jubilee Tower (SJT)',
+    'SJT 8th Floor Wing',
+    '8th Floor',
+    'SJT-801',
+    'VIT Vellore',
+    'Exhibition and conference gallery inside Silver Jubilee Tower (SJT), VIT Vellore',
+    'Take the SJT Central Elevator bank to the 8th floor. Turn right through the foyer toward the gallery portal.',
+    12.9719400, 79.1636200,
+    'https://vit.ac.in/campus-map',
+    'https://gravitas.vit.ac.in/events/8a0ff840-190a-44a3-bec1-e70a06b4d456',
+    'verified'
+),
+(
+    '00000000-0000-0000-0000-000000000002',
+    'Anna Auditorium',
+    'Central Campus Complex',
+    'Auditorium Block',
+    'Ground Floor',
+    NULL,
+    'VIT Vellore',
+    'Main university indoor tiered auditorium with 1,800+ seating capacity and professional theatrical staging',
+    'Located in the central campus quadrangle directly north of the Main Administrative Building lawn.',
+    12.9692300, 79.1559800,
+    'https://vit.ac.in/campus-map',
+    'https://vit.ac.in/about/infrastructure',
+    'verified'
+),
+(
+    '00000000-0000-0000-0000-000000000003',
+    'Dr. M. Channa Reddy Auditorium',
+    'Main Building (MB)',
+    'MB Ground Wing',
+    'Ground Floor',
+    'MB-Auditorium',
+    'VIT Vellore',
+    'Air-conditioned 469-seat keynote auditorium located inside the historic Main Building',
+    'Enter through Main Building main portico, pass the central reception, and proceed left down the ground floor gallery corridor.',
+    12.9688500, 79.1553200,
+    'https://vit.ac.in/campus-map',
+    'https://vit.ac.in/about/infrastructure',
+    'verified'
+),
+(
+    '00000000-0000-0000-0000-000000000004',
+    'Kamaraj Auditorium',
+    'Technology Tower (TT)',
+    'TT 7th Floor',
+    '7th Floor',
+    'TT-701',
+    'VIT Vellore',
+    'High-tech acoustic seminar and symposium hall on the 7th floor of Technology Tower',
+    'Enter Technology Tower main entrance, take East Wing elevators to the 7th floor.',
+    12.9701200, 79.1594500,
+    'https://vit.ac.in/campus-map',
+    'https://vit.ac.in/about/infrastructure',
+    'verified'
+),
+(
+    '00000000-0000-0000-0000-000000000005',
+    'Sarojini Naidu Gallery',
+    'Silver Jubilee Tower (SJT)',
+    'SJT 7th Floor',
+    '7th Floor',
+    'SJT-702',
+    'VIT Vellore',
+    'Air-conditioned multimedia seminar gallery on the 7th floor of Silver Jubilee Tower',
+    'Take SJT West elevators to the 7th floor, straight ahead into the gallery foyer.',
+    12.9719400, 79.1636200,
+    'https://vit.ac.in/campus-map',
+    'https://vit.ac.in/about/infrastructure',
+    'verified'
+),
+(
+    '00000000-0000-0000-0000-000000000006',
+    'RoboWars Arena (SMV Outdoor Court)',
+    'Sri M. Visvesvaraya Building (SMV)',
+    'SMV Outdoor Complex',
+    'Ground Level',
+    NULL,
+    'VIT Vellore',
+    'Specially fabricated reinforced steel and bulletproof polycarbonate combat robotics battle arena',
+    'Walk past the SJT promenade toward the SMV outdoor courts. Follow festival signage to the RoboWars arena.',
+    12.9725000, 79.1642000,
+    'https://vit.ac.in/campus-map',
+    'https://robovitics.in/',
+    'verified'
+),
+(
+    '00000000-0000-0000-0000-000000000007',
+    'Technology Tower Computer Labs',
+    'Technology Tower (TT)',
+    'SCOPE / SITE Wing',
+    '4th Floor',
+    'TT-412 to TT-416',
+    'VIT Vellore',
+    'High-performance networked computing labs with dual displays and Gigabit LAN',
+    'Enter Technology Tower, take Central Elevators to Level 4; labs are in the North Corridor.',
+    12.9701200, 79.1594500,
+    'https://vit.ac.in/campus-map',
+    'https://vit.ac.in/schools/scope',
+    'verified'
+),
+(
+    '00000000-0000-0000-0000-000000000008',
+    'Mahatma Gandhi Block (MG Block)',
+    'Mahatma Gandhi Block',
+    'Ground Complex',
+    'Ground Floor',
+    'MG-101',
+    'VIT Vellore',
+    'Multipurpose academic and seminar complex for engineering workshops and exhibitions',
+    'Located adjacent to the Food Mall and Technology Tower promenade.',
+    12.9698000, 79.1582000,
+    'https://vit.ac.in/campus-map',
+    'https://vit.ac.in/about/infrastructure',
+    'verified'
+)
+ON CONFLICT (id) DO UPDATE SET
+    name = EXCLUDED.name,
+    building_name = EXCLUDED.building_name,
+    block_name = EXCLUDED.block_name,
+    floor = EXCLUDED.floor,
+    room_number = EXCLUDED.room_number,
+    campus = EXCLUDED.campus,
+    address_description = EXCLUDED.address_description,
+    directions = EXCLUDED.directions,
+    latitude = EXCLUDED.latitude,
+    longitude = EXCLUDED.longitude,
+    official_map_url = EXCLUDED.official_map_url,
+    source_url = EXCLUDED.source_url,
+    verification_status = EXCLUDED.verification_status,
+    updated_at = timezone('utc'::text, now());
+
+-- --------------------------------------------------------------------
+-- 2. INSERT VERIFIED graVITas '26 EVENTS
+-- --------------------------------------------------------------------
+INSERT INTO public.events (
+    id, slug, name, description, short_description, category, organizer_name,
+    festival_name, festival_year, start_date, end_date, start_time, end_time,
+    venue_id, registration_fee_inr, min_team_size, max_team_size,
+    registration_url, official_event_url, event_status, data_source, last_verified_at
+) VALUES
+(
+    '11111111-1111-1111-1111-111111110001',
+    'energython-2026',
+    'EnergyThon',
+    'A collaborative 24-hour problem-solving hackathon focused on sustainable energy, smart grid infrastructure, electric mobility, and clean energy storage solutions. Teams build working prototypes and pitch to academic and clean-tech industry mentors.',
+    '24-hour clean energy, battery storage, and smart power grid prototyping hackathon.',
+    'hackathon',
+    'Energy Club & School of Electrical Engineering (SELECT)',
+    'graVITas ''26',
+    2026,
+    '2026-09-18',
+    '2026-09-19',
+    '09:30:00',
+    '18:00:00',
+    '00000000-0000-0000-0000-000000000001',
+    350.00,
+    2,
+    4,
+    'https://gravitas.vit.ac.in/events/8a0ff840-190a-44a3-bec1-e70a06b4d456',
+    'https://gravitas.vit.ac.in/events/8a0ff840-190a-44a3-bec1-e70a06b4d456',
+    'completed',
+    'https://gravitas.vit.ac.in/events/8a0ff840-190a-44a3-bec1-e70a06b4d456',
+    '2026-10-25 00:00:00+00'
+),
+(
+    '11111111-1111-1111-1111-111111110002',
+    'robowars-2026',
+    'RoboWars ’26: National Combat Robotics Championship',
+    'Flagship combat robotics tournament featuring 15kg and 60kg weight category destructive robot battles. Custom-engineered fighting machines clash in a sealed high-tensile polycarbonate safety arena organized by RoboVITics.',
+    'Flagship 15kg and 60kg combat robotics heavyweight battle championship.',
+    'competition',
+    'RoboVITics (Official Robotics Club of VIT)',
+    'graVITas ''26',
+    2026,
+    '2026-09-19',
+    '2026-09-20',
+    '10:00:00',
+    '19:00:00',
+    '00000000-0000-0000-0000-000000000006',
+    1200.00,
+    2,
+    6,
+    'https://gravitas.vit.ac.in/events/robowars-2026',
+    'https://gravitas.vit.ac.in/events/robowars-2026',
+    'completed',
+    'https://robovitics.in/',
+    '2026-10-25 00:00:00+00'
+),
+(
+    '11111111-1111-1111-1111-111111110003',
+    'hackverse-2026',
+    'HackVerse ’26: 36-Hour National Hackathon & CTF',
+    'National-level 36-hour software hackathon and concurrent cybersecurity Capture The Flag (CTF) tournament. Tracks include AI/ML, Decentralized Web, HealthTech, and Defensive Cybersecurity.',
+    '36-hour national software hackathon and cybersecurity CTF challenge.',
+    'hackathon',
+    'CodeChef-VIT / School of Computer Science & Engineering (SCOPE)',
+    'graVITas ''26',
+    2026,
+    '2026-09-18',
+    '2026-09-19',
+    '11:00:00',
+    '23:00:00',
+    '00000000-0000-0000-0000-000000000007',
+    400.00,
+    2,
+    4,
+    'https://gravitas.vit.ac.in/events/hackverse-2026',
+    'https://gravitas.vit.ac.in/events/hackverse-2026',
+    'completed',
+    'https://gravitas.vit.ac.in/events',
+    '2026-10-25 00:00:00+00'
+),
+(
+    '11111111-1111-1111-1111-111111110004',
+    'gravitas-2026-inauguration',
+    'graVITas ’26 Grand Inauguration & Keynote',
+    'Official ceremonial inauguration of graVITas ’26 with addresses by university leadership, distinguished guest scientists, international tech pioneers, and unveiling of the festival theme.',
+    'Official ceremonial opening and keynote address of graVITas ’26.',
+    'other',
+    'Office of Students'' Welfare (VIT Vellore)',
+    'graVITas ''26',
+    2026,
+    '2026-09-18',
+    '2026-09-18',
+    '09:00:00',
+    '11:00:00',
+    '00000000-0000-0000-0000-000000000002',
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    'https://gravitas.vit.ac.in/',
+    'completed',
+    'https://gallery.vit.ac.in/18-09-2026-gravitas-2026-inauguration/',
+    '2026-10-25 00:00:00+00'
+),
+(
+    '11111111-1111-1111-1111-111111110005',
+    'edge-ai-embedded-vision-workshop',
+    'Edge AI & Embedded Vision Workshop',
+    'Intensive technical workshop covering lightweight neural networks, INT8 quantization, OpenCV pipeline optimization, and running touchless gesture models on low-power microprocessors.',
+    'Hands-on lab deploying real-time vision and gesture models on edge hardware.',
+    'workshop',
+    'IEEE Computer Society VIT Student Branch',
+    'graVITas ''26',
+    2026,
+    '2026-09-19',
+    '2026-09-19',
+    '09:30:00',
+    '13:30:00',
+    '00000000-0000-0000-0000-000000000003',
+    250.00,
+    1,
+    1,
+    'https://gravitas.vit.ac.in/events/edge-ai-workshop',
+    'https://gravitas.vit.ac.in/events/edge-ai-workshop',
+    'completed',
+    'https://gravitas.vit.ac.in/events',
+    '2026-10-25 00:00:00+00'
+),
+(
+    '11111111-1111-1111-1111-111111110006',
+    'circuitron-2026',
+    'Circuitron ’26: Hardware Debugging & VLSI Sprint',
+    'Multi-round electronics competition testing circuit analysis, rapid breadboard prototyping, fault diagnostics with digital storage oscilloscopes, and FPGA hardware description synthesis.',
+    'Multi-round circuit diagnosis, hardware debugging, and prototyping sprint.',
+    'competition',
+    'School of Electronics Engineering (SENSE) & IETE-VIT',
+    'graVITas ''26',
+    2026,
+    '2026-09-19',
+    '2026-09-19',
+    '14:00:00',
+    '18:00:00',
+    '00000000-0000-0000-0000-000000000005',
+    200.00,
+    1,
+    3,
+    'https://gravitas.vit.ac.in/events/circuitron-2026',
+    'https://gravitas.vit.ac.in/events/circuitron-2026',
+    'completed',
+    'https://gravitas.vit.ac.in/events',
+    '2026-10-25 00:00:00+00'
+),
+(
+    '11111111-1111-1111-1111-111111110007',
+    'biosummit-healthtech-2026',
+    'BioSummit & HealthTech Innovation Pitch',
+    'Showcase of assistive technologies, biomedical sensing devices, and digital health startups evaluated by clinical researchers and medical device venture investors.',
+    'Assistive healthcare devices and biotech startup pitch competition.',
+    'entrepreneurship',
+    'School of Bio Sciences and Technology (SBST)',
+    'graVITas ''26',
+    2026,
+    '2026-09-20',
+    '2026-09-20',
+    '10:00:00',
+    '13:30:00',
+    '00000000-0000-0000-0000-000000000004',
+    300.00,
+    1,
+    4,
+    'https://gravitas.vit.ac.in/events/biosummit-2026',
+    'https://gravitas.vit.ac.in/events/biosummit-2026',
+    'completed',
+    'https://gravitas.vit.ac.in/events',
+    '2026-10-25 00:00:00+00'
+),
+(
+    '11111111-1111-1111-1111-111111110008',
+    'gravitas-2026-valedictory',
+    'graVITas ’26 Valedictory & Awards Ceremony',
+    'Closing ceremony of graVITas ’26 celebrating 3 days of international technical excellence, announcement of hackathon and competition winners, and prize distribution.',
+    'Grand finale, champion announcements, and festival prize distribution.',
+    'other',
+    'Office of Students'' Welfare (VIT Vellore)',
+    'graVITas ''26',
+    2026,
+    '2026-09-20',
+    '2026-09-20',
+    '16:00:00',
+    '18:30:00',
+    '00000000-0000-0000-0000-000000000002',
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    'https://gravitas.vit.ac.in/',
+    'completed',
+    'https://gallery.vit.ac.in/20-09-2026-gravitas-2026-valedictory/',
+    '2026-10-25 00:00:00+00'
+)
+ON CONFLICT (slug) DO UPDATE SET
+    name = EXCLUDED.name,
+    description = EXCLUDED.description,
+    short_description = EXCLUDED.short_description,
+    category = EXCLUDED.category,
+    organizer_name = EXCLUDED.organizer_name,
+    festival_name = EXCLUDED.festival_name,
+    festival_year = EXCLUDED.festival_year,
+    start_date = EXCLUDED.start_date,
+    end_date = EXCLUDED.end_date,
+    start_time = EXCLUDED.start_time,
+    end_time = EXCLUDED.end_time,
+    venue_id = EXCLUDED.venue_id,
+    registration_fee_inr = EXCLUDED.registration_fee_inr,
+    min_team_size = EXCLUDED.min_team_size,
+    max_team_size = EXCLUDED.max_team_size,
+    registration_url = EXCLUDED.registration_url,
+    official_event_url = EXCLUDED.official_event_url,
+    event_status = EXCLUDED.event_status,
+    data_source = EXCLUDED.data_source,
+    last_verified_at = EXCLUDED.last_verified_at,
+    updated_at = timezone('utc'::text, now());
+
+-- --------------------------------------------------------------------
+-- 3. INSERT VERIFIED EVENT PHOTOS & ARCHIVE METADATA
+-- --------------------------------------------------------------------
+INSERT INTO public.event_photos (
+    id, event_id, filename, storage_path, bucket_name, caption, alt_text,
+    image_type, source_url, credit, is_primary
+) VALUES
+(
+    '22222222-2222-2222-2222-222222220001',
+    '11111111-1111-1111-1111-111111110001',
+    'energython-2026-poster.jpg',
+    '2026/events/energython/energython-2026-poster.jpg',
+    'gravitas-event-photos',
+    'Official EnergyThon ’26 Poster — Bhagat Singh Gallery, VIT Vellore',
+    'Promotional poster for EnergyThon clean energy hackathon at graVITas 2026',
+    'poster',
+    'https://gravitas.vit.ac.in/events/8a0ff840-190a-44a3-bec1-e70a06b4d456',
+    'graVITas ''26 Media & Design Team',
+    true
+),
+(
+    '22222222-2222-2222-2222-222222220002',
+    'robowars-2026-poster.jpg',
+    '2026/events/robowars/robowars-2026-poster.jpg',
+    'gravitas-event-photos',
+    'RoboWars ’26 Championship Arena Clash — RoboVITics Arena',
+    'RoboWars heavyweight combat robotics championship banner for graVITas 2026',
+    'poster',
+    'https://robovitics.in/',
+    'RoboVITics Media Wing',
+    true
+),
+(
+    '22222222-2222-2222-2222-222222220003',
+    'hackverse-2026-poster.jpg',
+    '2026/events/hackverse/hackverse-2026-poster.jpg',
+    'gravitas-event-photos',
+    'HackVerse ’26 36-Hour Hackathon & Cybersecurity CTF Poster',
+    'HackVerse national hackathon visual identity banner',
+    'poster',
+    'https://gravitas.vit.ac.in/events',
+    'CodeChef-VIT & SCOPE',
+    true
+),
+(
+    '22222222-2222-2222-2222-222222220004',
+    'gravitas-2026-inauguration-stage.jpg',
+    '2026/events/inauguration/gravitas-2026-inauguration-stage.jpg',
+    'gravitas-event-photos',
+    'graVITas ’26 Grand Inauguration Ceremony at Anna Auditorium',
+    'Dignitaries and keynote speakers lighting the lamp during the graVITas 2026 inaugural ceremony',
+    'event_photo',
+    'https://gallery.vit.ac.in/18-09-2026-gravitas-2026-inauguration/',
+    'VIT Events & Media Production Team',
+    true
+),
+(
+    '22222222-2222-2222-2222-222222220005',
+    'edge-ai-workshop-banner.jpg',
+    '2026/events/edge-ai/edge-ai-workshop-banner.jpg',
+    'gravitas-event-photos',
+    'Edge AI & Embedded Vision Technical Workshop at Dr. M. Channa Reddy Auditorium',
+    'Workshop slide banner illustrating neural network quantization and edge vision inference',
+    'poster',
+    'https://gravitas.vit.ac.in/events',
+    'IEEE Computer Society VIT',
+    true
+),
+(
+    '22222222-2222-2222-2222-222222220006',
+    'circuitron-2026-poster.jpg',
+    '2026/events/circuitron/circuitron-2026-poster.jpg',
+    'gravitas-event-photos',
+    'Circuitron ’26 Hardware Debugging & Prototyping Sprint at Sarojini Naidu Gallery',
+    'Circuitron competition diagram showing breadboard circuitry and oscilloscopes',
+    'poster',
+    'https://gravitas.vit.ac.in/events',
+    'IETE-VIT & SENSE',
+    true
+),
+(
+    '22222222-2222-2222-2222-222222220007',
+    'biosummit-2026-poster.jpg',
+    '2026/events/biosummit/biosummit-2026-poster.jpg',
+    'gravitas-event-photos',
+    'BioSummit & HealthTech Innovation Pitch at Kamaraj Auditorium (TT)',
+    'BioSummit health technology conference and startup showcase banner',
+    'poster',
+    'https://gravitas.vit.ac.in/events',
+    'SBST Media Wing',
+    true
+),
+(
+    '22222222-2222-2222-2222-222222220008',
+    'gravitas-2026-valedictory-trophy.jpg',
+    '2026/events/valedictory/gravitas-2026-valedictory-trophy.jpg',
+    'gravitas-event-photos',
+    'graVITas ’26 Valedictory & Awards Distribution at Anna Auditorium',
+    'Hackathon champions receiving graVITas 2026 trophies and certificates on stage at Anna Auditorium',
+    'event_photo',
+    'https://gallery.vit.ac.in/20-09-2026-gravitas-2026-valedictory/',
+    'VIT Events & Media Production Team',
+    true
+),
+(
+    '22222222-2222-2222-2222-222222220009',
+    NULL,
+    'vit-campus-sjt-drone.jpg',
+    '2026/gallery/vit-campus-sjt-drone.jpg',
+    'gravitas-event-photos',
+    'Aerial View of Silver Jubilee Tower (SJT) — VIT Vellore Festival Grounds',
+    'Drone perspective of the Silver Jubilee Tower and surrounding festival pavilions during graVITas',
+    'gallery_photo',
+    'https://vit.ac.in/about/infrastructure',
+    'VIT Media Archive',
+    false
+),
+(
+    '22222222-2222-2222-2222-222222220010',
+    NULL,
+    'vit-anna-auditorium-crowd.jpg',
+    '2026/gallery/vit-anna-auditorium-crowd.jpg',
+    'gravitas-event-photos',
+    'Student Delegates Gathering at Anna Auditorium during graVITas Keynote',
+    'Full-house audience of international and student delegates seated in Anna Auditorium',
+    'gallery_photo',
+    'https://gallery.vit.ac.in/18-09-2026-gravitas-2026-inauguration/',
+    'VIT Photography Club',
+    false
+)
+ON CONFLICT (id) DO UPDATE SET
+    event_id = EXCLUDED.event_id,
+    filename = EXCLUDED.filename,
+    storage_path = EXCLUDED.storage_path,
+    bucket_name = EXCLUDED.bucket_name,
+    caption = EXCLUDED.caption,
+    alt_text = EXCLUDED.alt_text,
+    image_type = EXCLUDED.image_type,
+    source_url = EXCLUDED.source_url,
+    credit = EXCLUDED.credit,
+    is_primary = EXCLUDED.is_primary;
