@@ -20,6 +20,40 @@ if (typeof window !== 'undefined' && supabaseAnonKey?.startsWith('sb_publishable
   );
 }
 
+export interface SupabaseConfigDiagnostics {
+  isConfigured: boolean;
+  hasUrl: boolean;
+  hasKey: boolean;
+  isJwtAnon: boolean;
+  isPublishableFormat: boolean;
+  keyPrefix: string;
+  projectRef: string;
+}
+
+export function getSupabaseConfigDiagnostics(): SupabaseConfigDiagnostics {
+  const url = supabaseUrl || '';
+  const key = supabaseAnonKey || '';
+  let projectRef = '';
+  try {
+    if (url) {
+      const parsed = new URL(url);
+      projectRef = parsed.hostname.split('.')[0] || '';
+    }
+  } catch {
+    projectRef = '';
+  }
+
+  return {
+    isConfigured: isSupabaseConfigured(),
+    hasUrl: Boolean(url && url.startsWith('http')),
+    hasKey: Boolean(key),
+    isJwtAnon: key.startsWith('eyJ'),
+    isPublishableFormat: key.startsWith('sb_publishable_'),
+    keyPrefix: key ? key.slice(0, 15) + '...' : '',
+    projectRef,
+  };
+}
+
 export const isSupabaseConfigured = (): boolean => {
   return Boolean(
     supabaseUrl &&

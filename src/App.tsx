@@ -74,16 +74,18 @@ export default function App() {
       setRegistrations(loadRegistrations());
       setActivePassModal({ registration: res.registration, isNew: res.isNew });
 
-      if (res.isNew && item.id) {
+      // Attempt initial background cloud sync immediately
+      if (item.id) {
         try {
-          const synced = await gravitasService.recordRegistration(item.id, res.registration.registrationCode);
-          if (!synced) {
+          const syncRes = await gravitasService.recordRegistration(item.id, res.registration.registrationCode);
+          if (!syncRes.success) {
             console.warn(
-              '[GestureGo] Local pass generated, but Supabase cloud sync did not complete. Ensure your VITE_SUPABASE_ANON_KEY in .env is the valid JWT anon key and setup_all.sql has been run in Supabase.'
+              '[GestureGo] Local pass generated, but Supabase cloud sync returned:',
+              syncRes.error
             );
           }
         } catch (err) {
-          console.error('[GestureGo] Failed to sync registration with Supabase:', err);
+          console.warn('[GestureGo] Supabase initial sync failed, will retry on Thumbs Down confirmation:', err);
         }
       }
     },
@@ -188,6 +190,89 @@ export default function App() {
     }, 2000);
   }, []);
 
+  // Handler for closing the pass modal: strictly executed on THUMBS_DOWN
+  // Sets registration status to CONFIRMED, commits record to Supabase, and closes modal
+  const handleConfirmAndClosePass = useCallback(
+    async (source: 'gesture' | 'manual' = 'gesture') => {
+      if (!activePassModal) return;
+      const { registration } = activePassModal;
+
+      // 1. Ensure registration is permanently confirmed locally
+      const currentLocal = loadRegistrations();
+      const existingIdx = currentLocal.findIndex(
+        (r) => r.registrationCode === registration.registrationCode || r.eventId === registration.eventId
+      );
+
+      const confirmedRecord: EventRegistration = {
+        ...registration,
+        registrationStatus: 'CONFIRMED',
+      };
+
+      if (existingIdx >= 0) {
+        currentLocal[existingIdx] = confirmedRecord;
+      } else {
+        currentLocal.push(confirmedRecord);
+      }
+      saveRegistrations(currentLocal);
+      setRegistrations([...currentLocal]);
+
+      // 2. Commit / sync with Supabase cloud database
+      let syncSucceeded = false;
+      let syncError = '';
+
+      if (registration.eventId) {
+        try {
+          const syncResult = await gravitasService.recordRegistration(
+            registration.eventId,
+            registration.registrationCode
+          );
+          syncSucceeded = syncResult.success;
+          if (!syncResult.success) {
+            syncError = syncResult.error || 'Database insert failed';
+          }
+        } catch (err: any) {
+          syncError = err?.message || 'Network exception';
+        }
+      }
+
+      // 3. Close the modal dialog
+      setActivePassModal(null);
+
+      // 4. Fire visual confirmation feedback
+      setActionToast({
+        action: 'CANCEL',
+        gesture: 'THUMBS_DOWN',
+        source,
+        timestamp: Date.now(),
+      });
+
+      if (syncSucceeded) {
+        setScrollToast({
+          message: `✅ Pass ${registration.registrationCode} confirmed & synced to Supabase!`,
+          timestamp: Date.now(),
+        });
+      } else if (syncError) {
+        setScrollToast({
+          message: `Pass ${registration.registrationCode} confirmed locally. (⚠️ Cloud sync pending: ${syncError})`,
+          timestamp: Date.now(),
+        });
+      } else {
+        setScrollToast({
+          message: `Pass ${registration.registrationCode} confirmed on device!`,
+          timestamp: Date.now(),
+        });
+      }
+
+      setTimeout(() => {
+        setActionToast((prev) => (prev && Date.now() - prev.timestamp >= 2500 ? null : prev));
+      }, 2600);
+      setTimeout(() => {
+        setScrollToast((prev) => (prev && Date.now() - prev.timestamp >= 3500 ? null : prev));
+      }, 3600);
+    },
+    [activePassModal]
+  );
+
   // Centralized Navigation Controller
   const handleAction = useCallback(
     (
@@ -195,15 +280,12 @@ export default function App() {
       source: 'gesture' | 'manual' = 'gesture',
       gesture: GestureClass = 'OPEN_PALM'
     ) => {
-      // If registration pass modal is open, THUMBS_DOWN (CANCEL) specifically closes it
+      // If registration pass modal is open, ONLY THUMBS_DOWN (CANCEL) confirms and closes it!
       if (activePassModal) {
         if (action === 'CANCEL') {
-          setActivePassModal(null);
-          setActionToast({ action, gesture, source, timestamp: Date.now() });
-          setTimeout(() => {
-            setActionToast((prev) => (prev && Date.now() - prev.timestamp >= 2500 ? null : prev));
-          }, 2600);
+          handleConfirmAndClosePass(source);
         }
+        // Strictly ignore all other navigation gestures while pass modal is open
         return;
       }
 
@@ -611,7 +693,7 @@ export default function App() {
         isOpen={!!activePassModal}
         registration={activePassModal?.registration || null}
         isNewRegistration={activePassModal?.isNew || false}
-        onClose={() => setActivePassModal(null)}
+        onClose={() => handleConfirmAndClosePass('manual')}
       />
 
       {/* Code Explorer Modal */}

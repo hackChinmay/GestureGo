@@ -156,34 +156,85 @@ export const gravitasService = {
   },
 
   /**
-   * Inserts an event registration into Supabase.
+   * Inserts or confirms an event registration in Supabase event_registrations table.
+   * Performs idempotent check to prevent duplicate key errors and handles unique constraints safely.
    */
-  async recordRegistration(eventId: string, registrationCode: string): Promise<boolean> {
-    if (isSupabaseConfigured() && supabase) {
-      try {
-        const { data, error } = await supabase.from('event_registrations').insert({
+  async recordRegistration(
+    eventId: string,
+    registrationCode: string
+  ): Promise<{ success: boolean; status: 'CONFIRMED' | 'ALREADY_EXISTS' | 'FAILED'; error?: string; data?: any }> {
+    if (!isSupabaseConfigured() || !supabase) {
+      const msg = 'Supabase client is not configured or missing valid keys in .env';
+      console.warn('[GravitasService] recordRegistration:', msg);
+      return { success: false, status: 'FAILED', error: msg };
+    }
+
+    try {
+      // 1. Idempotency check: see if already recorded in Supabase
+      const { data: existing, error: checkErr } = await supabase
+        .from('event_registrations')
+        .select('id, registration_code, status')
+        .or(`registration_code.eq.${registrationCode},event_id.eq.${eventId}`)
+        .limit(1);
+
+      if (!checkErr && existing && existing.length > 0) {
+        console.log('[GravitasService] Registration already recorded in Supabase:', existing[0]);
+        return {
+          success: true,
+          status: 'ALREADY_EXISTS',
+          data: existing[0],
+        };
+      }
+
+      // 2. Insert new registration record into Supabase
+      const { data, error } = await supabase
+        .from('event_registrations')
+        .insert({
           event_id: eventId,
           registration_code: registrationCode,
           status: 'CONFIRMED',
-        }).select();
-        
-        if (!error) {
-          console.log('[GravitasService] Successfully synced registration to Supabase:', data);
-          return true;
-        }
+        })
+        .select();
 
-        console.error(
-          '[GravitasService] Supabase registration insert failed:',
-          error.message,
-          error.details || error.hint || ''
-        );
-      } catch (err) {
-        console.error('[GravitasService] Supabase registration insert exception:', err);
+      if (!error && data && data.length > 0) {
+        console.log('[GravitasService] Successfully synced registration to Supabase:', data);
+        return {
+          success: true,
+          status: 'CONFIRMED',
+          data: data[0],
+        };
       }
-    } else {
-      console.warn('[GravitasService] Supabase is not configured or client is null.');
+
+      // 3. Handle duplicate key conflict gracefully
+      if (error && error.code === '23505') {
+        console.log('[GravitasService] Registration code or event already recorded (23505):', error.message);
+        return {
+          success: true,
+          status: 'ALREADY_EXISTS',
+        };
+      }
+
+      const errMsg = error ? error.message : 'Unknown database error';
+      console.error(
+        '[GravitasService] Supabase registration insert failed:',
+        errMsg,
+        error?.details || error?.hint || ''
+      );
+
+      return {
+        success: false,
+        status: 'FAILED',
+        error: errMsg,
+      };
+    } catch (err: any) {
+      const exceptionMsg = err?.message || 'Network exception connecting to Supabase';
+      console.error('[GravitasService] Supabase registration insert exception:', exceptionMsg);
+      return {
+        success: false,
+        status: 'FAILED',
+        error: exceptionMsg,
+      };
     }
-    return false;
   },
 
   /**

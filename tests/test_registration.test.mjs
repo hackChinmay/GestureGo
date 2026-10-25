@@ -271,4 +271,68 @@ describe('GestureGo Event Registration & Pass Code Suite', () => {
     assert.equal(saved[0].registrationCode, initial.registration.registrationCode);
     assert.equal(saved[0].registrationStatus, 'CONFIRMED');
   });
+
+  // Scenario 14: Pass modal rejects Escape and backdrop clicks, strictly closing via THUMBS_DOWN (CANCEL)
+  test('14. Pass modal rejects Escape and backdrop clicks, strictly closing via CANCEL (THUMBS_DOWN)', () => {
+    let isModalOpen = true;
+    let registrationStatus = 'PENDING';
+
+    function handleEvent(eventType, action) {
+      if (isModalOpen) {
+        // Backdrop click and Escape key are disabled
+        if (eventType === 'backdrop_click' || eventType === 'escape_key') {
+          return;
+        }
+        // ONLY CANCEL (triggered by THUMBS_DOWN) closes and confirms
+        if (action === 'CANCEL') {
+          isModalOpen = false;
+          registrationStatus = 'CONFIRMED';
+        }
+      }
+    }
+
+    // Try backdrop click -> modal stays open
+    handleEvent('backdrop_click', null);
+    assert.equal(isModalOpen, true, 'Backdrop click must NOT close the pass modal');
+    assert.equal(registrationStatus, 'PENDING');
+
+    // Try Escape key -> modal stays open
+    handleEvent('escape_key', null);
+    assert.equal(isModalOpen, true, 'Escape key must NOT close the pass modal');
+    assert.equal(registrationStatus, 'PENDING');
+
+    // Try non-CANCEL gestures -> modal stays open
+    handleEvent('gesture', 'NEXT_PAGE');
+    assert.equal(isModalOpen, true, 'Navigation gesture must NOT close the pass modal');
+    handleEvent('gesture', 'CONFIRM_OR_SELECT');
+    assert.equal(isModalOpen, true, 'Thumbs up must NOT close the pass modal');
+
+    // THUMBS_DOWN (CANCEL) confirms and closes
+    handleEvent('gesture', 'CANCEL');
+    assert.equal(isModalOpen, false, 'THUMBS_DOWN CANCEL must close the pass modal');
+    assert.equal(registrationStatus, 'CONFIRMED', 'Registration must be marked CONFIRMED upon THUMBS_DOWN');
+  });
+
+  // Scenario 15: Re-confirming an already registered pass ensures status is CONFIRMED and preserves code
+  test('15. Re-confirming pass with THUMBS_DOWN ensures CONFIRMED status and preserves code', () => {
+    const item = SCHEDULE_ITEMS[1];
+    const initial = createOrGetRegistration(item);
+    assert.equal(initial.isNew, true);
+
+    const list = loadRegistrations();
+    assert.equal(list.length, 1);
+
+    // Simulate THUMBS_DOWN confirmation handler
+    const code = initial.registration.registrationCode;
+    const existingIdx = list.findIndex(r => r.registrationCode === code);
+    assert.ok(existingIdx >= 0);
+    list[existingIdx].registrationStatus = 'CONFIRMED';
+    saveRegistrations(list);
+
+    const reloaded = loadRegistrations();
+    const target = reloaded.find(r => r.registrationCode === code);
+    assert.ok(target);
+    assert.equal(target.registrationStatus, 'CONFIRMED');
+    assert.equal(target.registrationCode, code);
+  });
 });

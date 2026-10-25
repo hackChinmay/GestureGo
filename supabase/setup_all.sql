@@ -134,6 +134,11 @@ CREATE POLICY "Allow users to read event registrations"
     ON public.event_registrations FOR SELECT
     USING (true);
 
+CREATE POLICY "Allow public update on event_registrations"
+    ON public.event_registrations FOR UPDATE
+    USING (true)
+    WITH CHECK (true);
+
 -- --------------------------------------------------------------------
 -- 7. STORAGE BUCKET CONFIGURATION (Supabase Storage)
 -- --------------------------------------------------------------------
