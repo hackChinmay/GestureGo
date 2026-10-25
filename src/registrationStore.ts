@@ -206,3 +206,23 @@ the registration desk for session check-in.
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
+
+/**
+ * Cancels/removes a registration by eventId.
+ */
+export function cancelRegistration(eventId: string): EventRegistration[] {
+  const currentList = loadRegistrations();
+  const updated = currentList.filter((r) => r.eventId !== eventId);
+  saveRegistrations(updated);
+  return updated;
+}
+
+/**
+ * Clears all stored registrations.
+ */
+export function clearAllRegistrations(): void {
+  if (typeof window !== 'undefined' && window.localStorage) {
+    window.localStorage.removeItem(STORAGE_KEY);
+  }
+}
+

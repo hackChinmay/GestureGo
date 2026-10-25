@@ -263,9 +263,14 @@ export const CameraSensor: React.FC<CameraSensorProps> = ({
               const mpGestures = results.gestures && results.gestures[0];
               if (mpGestures && mpGestures.length > 0) {
                 const mpLabel = mpGestures[0].categoryName;
-                const cleaned = mpLabel.toUpperCase().replace(/\s+/g, '_') as GestureClass;
-                if (GESTURE_DEFINITIONS[cleaned]) {
-                  detectedGesture = cleaned;
+                let cleaned = mpLabel.toUpperCase().replace(/\s+/g, '_');
+                if (cleaned === 'THUMB_UP') cleaned = 'THUMBS_UP';
+                if (cleaned === 'THUMB_DOWN') cleaned = 'THUMBS_DOWN';
+                if (cleaned === 'ILOVEYOU') cleaned = 'I_LOVE_YOU';
+
+                const targetGesture = cleaned as GestureClass;
+                if (GESTURE_DEFINITIONS[targetGesture]) {
+                  detectedGesture = targetGesture;
                   detectedConfidence = mpGestures[0].score;
                 } else {
                   detectedGesture = 'UNKNOWN';

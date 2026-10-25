@@ -79,14 +79,19 @@ export function classifyKinematicGesture(normFeatures: number[]): {
   }
 
   const thumbTip = pt(4);
+  const thumbIp = pt(3);
+  const thumbMcp = pt(2);
   const indexTip = pt(8);
   const indexPip = pt(6);
   const indexMcp = pt(5);
   const middleTip = pt(12);
 
   // In normalized space, negative Y is UPWARDS on screen, positive Y is DOWNWARDS
-  const thumbPointingUp = thumbTip[1] < -0.32;
-  const thumbPointingDown = thumbTip[1] > 0.32;
+  const thumbPointingUp =
+    (thumbTip[1] < thumbIp[1] && thumbTip[1] < thumbMcp[1]) || thumbTip[1] < -0.20;
+  const thumbPointingDown =
+    (thumbTip[1] > thumbIp[1] && thumbTip[1] > thumbMcp[1]) || thumbTip[1] > 0.20;
+
 
   const countExtended = Object.values(ext).filter(Boolean).length;
   const indexMiddleDistance = Math.sqrt(

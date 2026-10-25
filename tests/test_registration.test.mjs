@@ -5,6 +5,7 @@ import {
   createOrGetRegistration,
   loadRegistrations,
   saveRegistrations,
+  cancelRegistration,
   STORAGE_KEY,
 } from '../src/registrationStore.ts';
 import { SCHEDULE_ITEMS } from '../src/campusData.ts';
@@ -247,5 +248,21 @@ describe('GestureGo Event Registration & Pass Code Suite', () => {
     const ok = saveRegistrations([]);
     assert.equal(ok, true);
     assert.equal(loadRegistrations().length, 0);
+  });
+
+  // Scenario 13: Cancelling a registration removes it from store and allows re-registration
+  test('13. cancelRegistration removes event and allows re-registration with a new pass', () => {
+    const item = SCHEDULE_ITEMS[0];
+    const initial = createOrGetRegistration(item);
+    assert.equal(initial.isNew, true);
+    assert.equal(loadRegistrations().length, 1);
+
+    const remaining = cancelRegistration(item.id);
+    assert.equal(remaining.length, 0);
+    assert.equal(loadRegistrations().length, 0);
+
+    const second = createOrGetRegistration(item);
+    assert.equal(second.isNew, true);
+    assert.equal(loadRegistrations().length, 1);
   });
 });

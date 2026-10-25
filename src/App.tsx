@@ -9,7 +9,8 @@ import {
   getPrevPage,
 } from './campusData';
 import { VERIFIED_GRAVITAS_EVENTS } from './gravitasData';
-import { loadRegistrations, createOrGetRegistration } from './registrationStore';
+import { loadRegistrations, createOrGetRegistration, cancelRegistration } from './registrationStore';
+import { gravitasService } from './gravitasService';
 import { Navbar } from './components/Navbar';
 import { ManualControls } from './components/ManualControls';
 import { CameraSensor } from './components/CameraSensor';
@@ -201,8 +202,19 @@ export default function App() {
             const result = createOrGetRegistration(activeItem);
             setRegistrations(loadRegistrations());
             setActivePassModal({ registration: result.registration, isNew: result.isNew });
+            if (result.isNew && activeItem.id) {
+              gravitasService.recordRegistration(activeItem.id, result.registration.registrationCode).catch(() => {});
+            }
           } else {
-            setConfirmedModal(`Confirmed selection on ${currentPage} section.`);
+            setCurrentPage('Schedule');
+            setNavHistory((prev) => [...prev, 'Schedule']);
+            contentScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+            setActionToast({
+              action: 'OPEN_SCHEDULE',
+              gesture: 'THUMBS_UP',
+              source,
+              timestamp: Date.now(),
+            });
           }
           break;
         }
@@ -474,9 +486,16 @@ export default function App() {
                     const res = createOrGetRegistration(item);
                     setRegistrations(loadRegistrations());
                     setActivePassModal({ registration: res.registration, isNew: res.isNew });
+                    if (res.isNew && item.id) {
+                      gravitasService.recordRegistration(item.id, res.registration.registrationCode).catch(() => {});
+                    }
                   }}
                   onViewPass={(reg) => {
                     setActivePassModal({ registration: reg, isNew: false });
+                  }}
+                  onCancelRegistration={(eventId) => {
+                    const updated = cancelRegistration(eventId);
+                    setRegistrations(updated);
                   }}
                 />
               )}
