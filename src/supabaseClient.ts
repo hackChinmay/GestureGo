@@ -12,7 +12,7 @@ function getEnvVar(key: string): string | undefined {
 }
 
 const supabaseUrl = getEnvVar('VITE_SUPABASE_URL');
-const supabaseAnonKey = getEnvVar('VITE_SUPABASE_ANON_KEY');
+const supabaseAnonKey = getEnvVar('VITE_SUPABASE_ANON_KEY') || getEnvVar('VITE_SUPABASE_PUBLISHABLE_KEY');
 
 export const isSupabaseConfigured = (): boolean => {
   return Boolean(
