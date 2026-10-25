@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { GravitasEvent, GravitasVenue, EventRegistration, ScheduleItem } from '../types';
+import { GravitasEvent, GravitasVenue, EventRegistration, ScheduleItem, KioskAction } from '../types';
 import { gravitasService } from '../gravitasService';
 import { VERIFIED_GRAVITAS_EVENTS, VERIFIED_VIT_VENUES } from '../gravitasData';
 import { copyToClipboard } from '../registrationStore';
@@ -28,6 +28,8 @@ interface ScheduleViewProps {
   onRegister: (item: GravitasEvent | ScheduleItem) => void;
   onViewPass: (registration: EventRegistration) => void;
   registrations: EventRegistration[];
+  lastAction?: KioskAction | null;
+  actionTimestamp?: number;
 }
 
 export const ScheduleView: React.FC<ScheduleViewProps> = ({
@@ -36,6 +38,8 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({
   onRegister,
   onViewPass,
   registrations,
+  lastAction,
+  actionTimestamp,
 }) => {
   const [activeTab, setActiveTab] = useState<'all' | 'my-passes'>('all');
   const [events, setEvents] = useState<GravitasEvent[]>(VERIFIED_GRAVITAS_EVENTS);
@@ -86,35 +90,27 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({
   const currentItem = events[activeIndex] || events[0];
   const isAtEnd = activeIndex === events.length - 1;
 
+  // Advance selection when SCROLL_DOWN action is received
+  useEffect(() => {
+    if (!lastAction || lastAction !== 'SCROLL_DOWN') return;
+    if (activeTab !== 'all' || events.length === 0) return;
+
+    const curIdx = events.findIndex(
+      (item) => item.id === selectedId || item.slug === selectedId
+    );
+    const validIdx = curIdx >= 0 ? curIdx : 0;
+    if (validIdx < events.length - 1) {
+      const nextItem = events[validIdx + 1];
+      onSelectId(nextItem.id);
+    }
+  }, [actionTimestamp, lastAction]);
+
   // Keep selection scrolled into view smoothly within the scroll container
   useEffect(() => {
     if (activeTab !== 'all' || !currentItem) return;
     const activeEl = itemRefs.current[currentItem.id];
     if (activeEl) {
-      const scrollParent = activeEl.closest('.overflow-y-auto') as HTMLElement | null;
-      if (scrollParent) {
-        const parentRect = scrollParent.getBoundingClientRect();
-        const elRect = activeEl.getBoundingClientRect();
-
-        const isFullyVisible =
-          elRect.top >= parentRect.top + 16 && elRect.bottom <= parentRect.bottom - 16;
-
-        if (!isFullyVisible) {
-          if (elRect.bottom > parentRect.bottom - 16) {
-            scrollParent.scrollBy({
-              top: elRect.bottom - parentRect.bottom + 40,
-              behavior: 'smooth',
-            });
-          } else if (elRect.top < parentRect.top + 16) {
-            scrollParent.scrollBy({
-              top: elRect.top - parentRect.top - 40,
-              behavior: 'smooth',
-            });
-          }
-        }
-      } else {
-        activeEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      }
+      activeEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
   }, [currentItem?.id, activeTab]);
 

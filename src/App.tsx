@@ -7,8 +7,8 @@ import {
   PageId,
   getNextPage,
   getPrevPage,
-  SCHEDULE_ITEMS,
 } from './campusData';
+import { VERIFIED_GRAVITAS_EVENTS } from './gravitasData';
 import { loadRegistrations, createOrGetRegistration } from './registrationStore';
 import { Navbar } from './components/Navbar';
 import { ManualControls } from './components/ManualControls';
@@ -54,7 +54,7 @@ export default function App() {
 
   // Synchronized Schedule Selection & Registration State
   const [selectedScheduleId, setSelectedScheduleId] = useState<string>(
-    () => SCHEDULE_ITEMS[0]?.id || 's1'
+    () => VERIFIED_GRAVITAS_EVENTS[0]?.id || '11111111-1111-1111-1111-111111110001'
   );
   const [registrations, setRegistrations] = useState<EventRegistration[]>(() => loadRegistrations());
   const [activePassModal, setActivePassModal] = useState<{
@@ -195,7 +195,9 @@ export default function App() {
         case 'CONFIRM': {
           if (currentPage === 'Schedule') {
             const activeItem =
-              SCHEDULE_ITEMS.find((it) => it.id === selectedScheduleId) || SCHEDULE_ITEMS[0];
+              VERIFIED_GRAVITAS_EVENTS.find(
+                (it) => it.id === selectedScheduleId || it.slug === selectedScheduleId
+              ) || VERIFIED_GRAVITAS_EVENTS[0];
             const result = createOrGetRegistration(activeItem);
             setRegistrations(loadRegistrations());
             setActivePassModal({ registration: result.registration, isNew: result.isNew });
@@ -227,19 +229,21 @@ export default function App() {
 
         case 'SCROLL_DOWN': {
           if (currentPage === 'Schedule') {
-            const curIdx = SCHEDULE_ITEMS.findIndex((it) => it.id === selectedScheduleId);
+            const curIdx = VERIFIED_GRAVITAS_EVENTS.findIndex(
+              (it) => it.id === selectedScheduleId || it.slug === selectedScheduleId
+            );
             const validIdx = curIdx >= 0 ? curIdx : 0;
-            if (validIdx < SCHEDULE_ITEMS.length - 1) {
-              const nextItem = SCHEDULE_ITEMS[validIdx + 1];
+            if (validIdx < VERIFIED_GRAVITAS_EVENTS.length - 1) {
+              const nextItem = VERIFIED_GRAVITAS_EVENTS[validIdx + 1];
               setSelectedScheduleId(nextItem.id);
               setScrollToast({
-                message: `Selected: ${nextItem.title}`,
-                atBottom: validIdx + 1 === SCHEDULE_ITEMS.length - 1,
+                message: `Selected: ${nextItem.name}`,
+                atBottom: validIdx + 1 === VERIFIED_GRAVITAS_EVENTS.length - 1,
                 timestamp: Date.now(),
               });
             } else {
               setScrollToast({
-                message: `End of schedule reached (${SCHEDULE_ITEMS.length}/${SCHEDULE_ITEMS.length} events)`,
+                message: `End of schedule reached (${VERIFIED_GRAVITAS_EVENTS.length}/${VERIFIED_GRAVITAS_EVENTS.length} events)`,
                 atBottom: true,
                 timestamp: Date.now(),
               });
@@ -464,6 +468,8 @@ export default function App() {
                   selectedId={selectedScheduleId}
                   onSelectId={setSelectedScheduleId}
                   registrations={registrations}
+                  lastAction={actionToast?.action}
+                  actionTimestamp={actionToast?.timestamp}
                   onRegister={(item) => {
                     const res = createOrGetRegistration(item);
                     setRegistrations(loadRegistrations());
