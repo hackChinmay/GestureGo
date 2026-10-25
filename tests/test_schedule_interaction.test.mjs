@@ -11,7 +11,7 @@ describe('Schedule Navigation and Event Selection Suite', () => {
     assert.equal(initialId, 's1');
     const initialItem = SCHEDULE_ITEMS.find((it) => it.id === initialId);
     assert.ok(initialItem !== undefined);
-    assert.equal(initialItem.title, 'Opening Keynote: Edge Computer Vision & Tactile Interfaces');
+    assert.equal(initialItem.title, 'EnergyThon');
   });
 
   // Scenario 2: POINTING_DOWN advances selected event by exactly one
@@ -29,7 +29,7 @@ describe('Schedule Navigation and Event Selection Suite', () => {
 
     selectedId = advanceSelection(selectedId);
     assert.equal(selectedId, 's2');
-    assert.equal(SCHEDULE_ITEMS.find((it) => it.id === selectedId).title, 'Workshop: Real-Time HCI with MediaPipe & Decision Trees');
+    assert.equal(SCHEDULE_ITEMS.find((it) => it.id === selectedId).title, 'RoboWars ’26: National Combat Robotics Championship');
   });
 
   // Scenario 3: Newly selected event is correctly identified and valid
@@ -37,14 +37,14 @@ describe('Schedule Navigation and Event Selection Suite', () => {
     const selectedId = 's2';
     const item = SCHEDULE_ITEMS.find((it) => it.id === selectedId);
     assert.ok(item !== undefined);
-    assert.equal(item.location, 'Innovation Lab 204');
-    assert.equal(item.track, 'Technical Workshop');
+    assert.equal(item.location, 'RoboWars Arena (SMV Outdoor Court)');
+    assert.equal(item.track, 'Competition');
   });
 
   // Scenario 4: Repeated POINTING_DOWN gestures advance selection one at a time
   test('4. Repeated POINTING_DOWN gestures advance selection sequentially', () => {
     let currentId = SCHEDULE_ITEMS[0].id;
-    const expectedIds = ['s1', 's2', 's3', 's4', 's5', 's6', 's7'];
+    const expectedIds = ['s1', 's2', 's3', 's4', 's5', 's6', 's7', 's8'];
 
     for (let step = 0; step < expectedIds.length; step++) {
       assert.equal(currentId, expectedIds[step], `Step ${step} should be ${expectedIds[step]}`);
@@ -53,7 +53,7 @@ describe('Schedule Navigation and Event Selection Suite', () => {
         currentId = SCHEDULE_ITEMS[curIdx + 1].id;
       }
     }
-    assert.equal(currentId, 's7');
+    assert.equal(currentId, 's8');
   });
 
   // Scenario 5: Holding POINTING_DOWN does not skip multiple events (One-Shot FSM)
@@ -89,7 +89,7 @@ describe('Schedule Navigation and Event Selection Suite', () => {
 
   // Scenario 7: Final event does not cause invalid selection or endless scrolling
   test('7. Final event does not cause out-of-bounds selection', () => {
-    let currentId = 's7'; // Last item
+    let currentId = 's8'; // Last item
     const curIdx = SCHEDULE_ITEMS.findIndex((it) => it.id === currentId);
     assert.equal(curIdx, SCHEDULE_ITEMS.length - 1);
 
@@ -97,18 +97,18 @@ describe('Schedule Navigation and Event Selection Suite', () => {
     if (curIdx < SCHEDULE_ITEMS.length - 1) {
       currentId = SCHEDULE_ITEMS[curIdx + 1].id;
     }
-    // Must remain s7
-    assert.equal(currentId, 's7');
+    // Must remain s8
+    assert.equal(currentId, 's8');
     assert.ok(SCHEDULE_ITEMS.find((it) => it.id === currentId) !== undefined);
   });
 
   // Scenario 8: THUMBS_UP acts on the selected event, not always the first event
   test('8. THUMBS_UP acts on the selected event, not always the first event', () => {
-    const selectedId = 's5'; // 5th event: Panel: Ergonomics & Safety
+    const selectedId = 's5'; // 5th event: Edge AI & Embedded Vision Workshop
     const activeItem = SCHEDULE_ITEMS.find((it) => it.id === selectedId) || SCHEDULE_ITEMS[0];
 
     assert.equal(activeItem.id, 's5');
-    assert.equal(activeItem.title, 'Panel: Ergonomics & Safety in Public Touchless Kiosks');
+    assert.equal(activeItem.title, 'Edge AI & Embedded Vision Workshop');
 
     const registeredIds = new Set();
     registeredIds.add(activeItem.id);

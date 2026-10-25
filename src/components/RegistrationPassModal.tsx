@@ -130,7 +130,7 @@ export const RegistrationPassModal: React.FC<RegistrationPassModalProps> = ({
             <Ticket className="w-5 h-5 text-[#D8FF4F] stroke-[2.5]" />
             <div>
               <span className="text-[10px] font-mono font-black uppercase tracking-wider text-[#D8FF4F]">
-                GestureGo • Apex Tech Con 2026
+                GestureGo • graVITas ’26 @ VIT Vellore
               </span>
               <h2 className="text-base sm:text-lg font-black uppercase tracking-tight text-white leading-tight">
                 Event Registration Pass
@@ -204,7 +204,7 @@ export const RegistrationPassModal: React.FC<RegistrationPassModalProps> = ({
                   <span className="truncate">{registration.venue}</span>
                 </div>
                 <div className="text-[11px] font-mono text-[#655E68]">
-                  North Quad Innovation Pavilion
+                  VIT Vellore Campus
                 </div>
               </div>
             </div>

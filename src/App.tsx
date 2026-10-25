@@ -16,6 +16,7 @@ import { CameraSensor } from './components/CameraSensor';
 import { HomeView } from './components/HomeView';
 import { ScheduleView } from './components/ScheduleView';
 import { VenuesView } from './components/VenuesView';
+import { GalleryView } from './components/GalleryView';
 import { StallsView } from './components/StallsView';
 import { ContactsView } from './components/ContactsView';
 import { HelpView } from './components/HelpView';
@@ -26,6 +27,7 @@ import {
   Home,
   Calendar,
   MapPin,
+  Camera,
   Store,
   Phone,
   HelpCircle,
@@ -285,6 +287,7 @@ export default function App() {
     Home: <Home className="w-3.5 h-3.5 stroke-[2.5]" />,
     Schedule: <Calendar className="w-3.5 h-3.5 stroke-[2.5]" />,
     Venues: <MapPin className="w-3.5 h-3.5 stroke-[2.5]" />,
+    Gallery: <Camera className="w-3.5 h-3.5 stroke-[2.5]" />,
     Stalls: <Store className="w-3.5 h-3.5 stroke-[2.5]" />,
     Contacts: <Phone className="w-3.5 h-3.5 stroke-[2.5]" />,
     Help: <HelpCircle className="w-3.5 h-3.5 stroke-[2.5]" />,
@@ -473,6 +476,14 @@ export default function App() {
               )}
 
               {currentPage === 'Venues' && <VenuesView />}
+              {currentPage === 'Gallery' && (
+                <GalleryView
+                  onSelectEvent={(id) => {
+                    setSelectedScheduleId(id);
+                    setCurrentPage('Schedule');
+                  }}
+                />
+              )}
               {currentPage === 'Stalls' && <StallsView />}
               {currentPage === 'Contacts' && <ContactsView />}
               {currentPage === 'Help' && <HelpView />}
@@ -510,7 +521,7 @@ export default function App() {
       <footer className="border-t-2 border-[#17151B] bg-white py-3 px-4 text-center text-xs text-[#655E68] mt-4">
         <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
           <span className="font-semibold text-[#17151B]">
-            GestureGo HCI System • Apex Tech Con 2026 • Local Computer Vision Processing
+            GestureGo HCI System • graVITas ’26 @ VIT Vellore • Edge Vision &amp; Supabase PostgreSQL
           </span>
           <button
             onClick={() => setCodeExplorerOpen(true)}

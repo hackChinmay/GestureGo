@@ -49,7 +49,7 @@ class TestScheduleNavigation(unittest.TestCase):
     def test_sequential_advancement_through_all_events(self):
         current_idx = 0
         max_idx = len(SCHEDULE_ITEMS) - 1
-        expected_ids = ["s1", "s2", "s3", "s4", "s5", "s6", "s7"]
+        expected_ids = ["s1", "s2", "s3", "s4", "s5", "s6", "s7", "s8"]
 
         for expected in expected_ids:
             self.assertEqual(SCHEDULE_ITEMS[current_idx]["id"], expected)
@@ -68,14 +68,14 @@ class TestScheduleNavigation(unittest.TestCase):
                 current_idx += 1
 
         self.assertEqual(current_idx, max_idx)
-        self.assertEqual(SCHEDULE_ITEMS[current_idx]["id"], "s7")
+        self.assertEqual(SCHEDULE_ITEMS[current_idx]["id"], "s8")
 
     def test_thumbs_up_confirms_active_selection(self):
         # Select 5th event (index 4: s5)
         selected_idx = 4
         active_item = SCHEDULE_ITEMS[selected_idx]
         self.assertEqual(active_item["id"], "s5")
-        self.assertIn("Ergonomics & Safety", active_item["title"])
+        self.assertIn("Edge AI", active_item["title"])
 
         # Confirmation feedback references s5, NOT s1
         confirmed_msg = f"Pass registered for: {active_item['title']} ({active_item['location']})"

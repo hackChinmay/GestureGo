@@ -6,7 +6,7 @@
  * with a 32^8 (~1.1 trillion) random keyspace.
  */
 
-import { EventRegistration, ScheduleItem } from './types';
+import { EventRegistration, ScheduleItem, GravitasEvent } from './types';
 
 export const STORAGE_KEY = 'gesturego_registrations_v1';
 
@@ -90,13 +90,21 @@ export function saveRegistrations(registrations: EventRegistration[]): boolean {
  * If not, generates a unique code, stores the record, and returns (isNew: true).
  */
 export function createOrGetRegistration(
-  event: ScheduleItem,
-  eventDate = 'October 24–26, 2026'
+  event: ScheduleItem | GravitasEvent,
+  eventDate = 'September 18–20, 2026'
 ): { registration: EventRegistration; isNew: boolean } {
   const currentList = loadRegistrations();
 
+  const eventId = event.id;
+  const eventTitle = 'title' in event ? event.title : event.name;
+  const eventLocation = 'location' in event ? event.location : (event.venue?.name || 'VIT Vellore');
+  const eventTime =
+    'time' in event
+      ? event.time
+      : (`${event.start_time || '09:00:00'} - ${event.end_time || '18:00:00'}`.trim());
+
   // 1. Check for existing registration by stable event ID
-  const existing = currentList.find((r) => r.eventId === event.id);
+  const existing = currentList.find((r) => r.eventId === eventId);
   if (existing) {
     return { registration: existing, isNew: false };
   }
@@ -109,11 +117,11 @@ export function createOrGetRegistration(
   const newRegistration: EventRegistration = {
     registrationId: `reg_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
     registrationCode: newCode,
-    eventId: event.id,
-    eventNameSnapshot: event.title,
+    eventId: eventId,
+    eventNameSnapshot: eventTitle,
     eventDate: eventDate,
-    eventTime: event.time,
-    venue: event.location,
+    eventTime: eventTime,
+    venue: eventLocation,
     registrationStatus: 'CONFIRMED',
     registeredAt: new Date().toISOString(),
   };
@@ -167,7 +175,7 @@ export function downloadPassFile(reg: EventRegistration): void {
 
   const content = `=======================================================
        GESTUREGO — EVENT REGISTRATION PASS
-       Apex Tech Con 2026 • Touchless Campus Assistant
+       graVITas ’26 • VIT Vellore Campus Assistant
 =======================================================
 
 REGISTRATION CODE : ${reg.registrationCode}
