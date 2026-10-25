@@ -541,6 +541,7 @@ INSERT INTO public.event_photos (
 ),
 (
     '22222222-2222-2222-2222-222222220002',
+    '11111111-1111-1111-1111-111111110002',
     'robowars-2026-poster.jpg',
     '2026/events/robowars/robowars-2026-poster.jpg',
     'gravitas-event-photos',
@@ -553,6 +554,7 @@ INSERT INTO public.event_photos (
 ),
 (
     '22222222-2222-2222-2222-222222220003',
+    '11111111-1111-1111-1111-111111110003',
     'hackverse-2026-poster.jpg',
     '2026/events/hackverse/hackverse-2026-poster.jpg',
     'gravitas-event-photos',
@@ -565,6 +567,7 @@ INSERT INTO public.event_photos (
 ),
 (
     '22222222-2222-2222-2222-222222220004',
+    '11111111-1111-1111-1111-111111110004',
     'gravitas-2026-inauguration-stage.jpg',
     '2026/events/inauguration/gravitas-2026-inauguration-stage.jpg',
     'gravitas-event-photos',
@@ -577,6 +580,7 @@ INSERT INTO public.event_photos (
 ),
 (
     '22222222-2222-2222-2222-222222220005',
+    '11111111-1111-1111-1111-111111110005',
     'edge-ai-workshop-banner.jpg',
     '2026/events/edge-ai/edge-ai-workshop-banner.jpg',
     'gravitas-event-photos',
@@ -589,6 +593,7 @@ INSERT INTO public.event_photos (
 ),
 (
     '22222222-2222-2222-2222-222222220006',
+    '11111111-1111-1111-1111-111111110006',
     'circuitron-2026-poster.jpg',
     '2026/events/circuitron/circuitron-2026-poster.jpg',
     'gravitas-event-photos',
@@ -601,6 +606,7 @@ INSERT INTO public.event_photos (
 ),
 (
     '22222222-2222-2222-2222-222222220007',
+    '11111111-1111-1111-1111-111111110007',
     'biosummit-2026-poster.jpg',
     '2026/events/biosummit/biosummit-2026-poster.jpg',
     'gravitas-event-photos',
@@ -613,6 +619,7 @@ INSERT INTO public.event_photos (
 ),
 (
     '22222222-2222-2222-2222-222222220008',
+    '11111111-1111-1111-1111-111111110008',
     'gravitas-2026-valedictory-trophy.jpg',
     '2026/events/valedictory/gravitas-2026-valedictory-trophy.jpg',
     'gravitas-event-photos',
