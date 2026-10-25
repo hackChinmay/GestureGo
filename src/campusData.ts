@@ -82,7 +82,7 @@ export const GESTURE_DEFINITIONS: Record<
   },
   THUMBS_DOWN: {
     action: 'CANCEL',
-    description: 'Dismiss active modal or cancel pending operation',
+    description: 'Close open pass window or dismiss dialog',
     category: 'Action',
     icon: '👎',
     prompt: 'Point thumb downward with other fingers curled into a fist.',

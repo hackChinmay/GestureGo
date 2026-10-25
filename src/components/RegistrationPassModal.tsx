@@ -168,8 +168,6 @@ export const RegistrationPassModal: React.FC<RegistrationPassModalProps> = ({
           <span className="flex items-center gap-1.5 font-bold">
             <span className="text-[#FF7048]">Touchless Close:</span>
             <span className="bg-white px-1.5 py-0.5 rounded border border-[#17151B]">👎 Thumbs Down</span>
-            <span>or</span>
-            <span className="bg-white px-1.5 py-0.5 rounded border border-[#17151B]">✊ Closed Fist</span>
           </span>
           <span className="text-[10px] text-[#655E68] hidden sm:inline font-sans font-semibold">
             Press <kbd className="px-1 py-0.5 bg-white border border-[#17151B] rounded text-[9px]">Esc</kbd> or click outside

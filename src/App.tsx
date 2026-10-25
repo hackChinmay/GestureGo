@@ -9,7 +9,7 @@ import {
   getPrevPage,
 } from './campusData';
 import { VERIFIED_GRAVITAS_EVENTS } from './gravitasData';
-import { loadRegistrations, createOrGetRegistration, cancelRegistration } from './registrationStore';
+import { loadRegistrations, createOrGetRegistration } from './registrationStore';
 import { gravitasService } from './gravitasService';
 import { Navbar } from './components/Navbar';
 import { ManualControls } from './components/ManualControls';
@@ -130,9 +130,9 @@ export default function App() {
       source: 'gesture' | 'manual' = 'gesture',
       gesture: GestureClass = 'OPEN_PALM'
     ) => {
-      // If registration pass modal is open, gestures must NOT trigger background page changes!
+      // If registration pass modal is open, THUMBS_DOWN (CANCEL) specifically closes it
       if (activePassModal) {
-        if (action === 'CANCEL' || action === 'BACK' || action === 'CONFIRM_OR_SELECT') {
+        if (action === 'CANCEL') {
           setActivePassModal(null);
           setActionToast({ action, gesture, source, timestamp: Date.now() });
           setTimeout(() => {
@@ -492,10 +492,6 @@ export default function App() {
                   }}
                   onViewPass={(reg) => {
                     setActivePassModal({ registration: reg, isNew: false });
-                  }}
-                  onCancelRegistration={(eventId) => {
-                    const updated = cancelRegistration(eventId);
-                    setRegistrations(updated);
                   }}
                 />
               )}

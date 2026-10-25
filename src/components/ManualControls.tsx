@@ -68,7 +68,7 @@ export const ManualControls: React.FC<ManualControlsProps> = ({ onAction, lastAc
     },
     {
       action: 'CANCEL',
-      label: 'Cancel',
+      label: 'Close Window',
       gestureLabel: 'Thumbs Down 👎',
       icon: <XCircle className="w-3.5 h-3.5 stroke-[2.5]" />,
       bgHover: 'hover:bg-[#FF7048]',

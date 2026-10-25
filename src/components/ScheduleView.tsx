@@ -20,7 +20,6 @@ import {
   Info,
   X,
   Building,
-  Trash2,
 } from 'lucide-react';
 
 interface ScheduleViewProps {
@@ -31,7 +30,6 @@ interface ScheduleViewProps {
   registrations: EventRegistration[];
   lastAction?: KioskAction | null;
   actionTimestamp?: number;
-  onCancelRegistration?: (eventId: string) => void;
 }
 
 export const ScheduleView: React.FC<ScheduleViewProps> = ({
@@ -42,7 +40,6 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({
   registrations,
   lastAction,
   actionTimestamp,
-  onCancelRegistration,
 }) => {
   const [activeTab, setActiveTab] = useState<'all' | 'my-passes'>('all');
   const [events, setEvents] = useState<GravitasEvent[]>(VERIFIED_GRAVITAS_EVENTS);
@@ -425,33 +422,18 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({
 
                         {/* Registration Pass Action */}
                         {isRegistered && existingReg ? (
-                          <div className="flex items-center gap-1.5">
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onSelectId(item.id);
-                                onViewPass(existingReg);
-                              }}
-                              className="px-2.5 py-1 rounded border-2 border-[#17151B] font-black text-xs bg-[#17151B] text-[#D8FF4F] hover:bg-slate-800 transition-colors flex items-center gap-1.5 cursor-pointer"
-                            >
-                              <Ticket className="w-3.5 h-3.5" />
-                              <span>View Pass ({existingReg.registrationCode})</span>
-                            </button>
-                            {onCancelRegistration && (
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  onCancelRegistration(item.id);
-                                }}
-                                className="px-2 py-1 rounded border border-[#17151B] font-bold text-xs bg-white hover:bg-red-50 text-red-600 transition-colors cursor-pointer"
-                                title="Cancel pass to re-test registration"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            )}
-                          </div>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onSelectId(item.id);
+                              onViewPass(existingReg);
+                            }}
+                            className="px-2.5 py-1 rounded border-2 border-[#17151B] font-black text-xs bg-[#17151B] text-[#D8FF4F] hover:bg-slate-800 transition-colors flex items-center gap-1.5 cursor-pointer"
+                          >
+                            <Ticket className="w-3.5 h-3.5" />
+                            <span>View Pass ({existingReg.registrationCode})</span>
+                          </button>
                         ) : (
                           <button
                             type="button"
@@ -541,28 +523,14 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({
                   </div>
 
                   <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-[#17151B]/15">
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => handleCopyCode(reg.registrationCode)}
-                        className="px-2.5 py-1 rounded bg-[#FFF7E8] hover:bg-slate-100 text-[#17151B] border border-[#17151B] font-bold text-xs flex items-center gap-1 cursor-pointer"
-                      >
-                        <Copy className="w-3 h-3" />
-                        <span>{copiedCode === reg.registrationCode ? 'Copied!' : 'Copy Code'}</span>
-                      </button>
-
-                      {onCancelRegistration && (
-                        <button
-                          type="button"
-                          onClick={() => onCancelRegistration(reg.eventId)}
-                          className="px-2 py-1 rounded bg-white hover:bg-red-50 text-red-600 border border-[#17151B] font-bold text-xs flex items-center gap-1 cursor-pointer"
-                          title="Cancel registration"
-                        >
-                          <Trash2 className="w-3 h-3" />
-                          <span>Cancel Pass</span>
-                        </button>
-                      )}
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleCopyCode(reg.registrationCode)}
+                      className="px-2.5 py-1 rounded bg-[#FFF7E8] hover:bg-slate-100 text-[#17151B] border border-[#17151B] font-bold text-xs flex items-center gap-1 cursor-pointer"
+                    >
+                      <Copy className="w-3 h-3" />
+                      <span>{copiedCode === reg.registrationCode ? 'Copied!' : 'Copy Code'}</span>
+                    </button>
 
                     <button
                       type="button"

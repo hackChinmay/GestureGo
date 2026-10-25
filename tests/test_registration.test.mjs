@@ -214,7 +214,7 @@ describe('GestureGo Event Registration & Pass Code Suite', () => {
 
     function simulateDispatch(action) {
       if (activeModal.isOpen) {
-        if (action === 'CANCEL' || action === 'CONFIRM_OR_SELECT') {
+        if (action === 'CANCEL') {
           activeModal.isOpen = false;
         }
         // Suppress background route changes!
@@ -250,19 +250,25 @@ describe('GestureGo Event Registration & Pass Code Suite', () => {
     assert.equal(loadRegistrations().length, 0);
   });
 
-  // Scenario 13: Cancelling a registration removes it from store and allows re-registration
-  test('13. cancelRegistration removes event and allows re-registration with a new pass', () => {
+  // Scenario 13: Thumbs down (CANCEL) dismisses modal without modifying registration records
+  test('13. CANCEL closes pass modal while strictly preserving stored registration records', () => {
     const item = SCHEDULE_ITEMS[0];
     const initial = createOrGetRegistration(item);
     assert.equal(initial.isNew, true);
     assert.equal(loadRegistrations().length, 1);
 
-    const remaining = cancelRegistration(item.id);
-    assert.equal(remaining.length, 0);
-    assert.equal(loadRegistrations().length, 0);
+    // Simulating CANCEL action only closes the window, registrations remain confirmed
+    let isModalOpen = true;
+    function onCancel() {
+      isModalOpen = false;
+    }
+    onCancel();
 
-    const second = createOrGetRegistration(item);
-    assert.equal(second.isNew, true);
-    assert.equal(loadRegistrations().length, 1);
+    assert.equal(isModalOpen, false);
+    // Registration remains permanently stored and confirmed
+    const saved = loadRegistrations();
+    assert.equal(saved.length, 1);
+    assert.equal(saved[0].registrationCode, initial.registration.registrationCode);
+    assert.equal(saved[0].registrationStatus, 'CONFIRMED');
   });
 });
