@@ -14,43 +14,6 @@
 
 ---
 
-## Table of Contents
-
-- [1. Hero & Overview](#1-hero--overview)
-- [2. Problem Statement](#2-problem-statement)
-- [3. Our Solution](#3-our-solution)
-- [4. Key Features](#4-key-features)
-- [5. Official graVITas ’26 & VIT Vellore Integration](#5-official-gravitas-26--vit-vellore-integration)
-- [6. Supabase Database & Storage Architecture](#6-supabase-database--storage-architecture)
-  - [Schema & Tables](#schema--tables)
-  - [Row Level Security (RLS)](#row-level-security-rls)
-  - [Storage Bucket Setup](#storage-bucket-setup)
-  - [Database Migrations & Seed Instructions](#database-migrations--seed-instructions)
-- [7. Gesture Reference Gallery](#7-gesture-reference-gallery)
-  - [A. Campus Navigation Gestures](#a-campus-navigation-gestures)
-  - [B. Content Interaction Gestures](#b-content-interaction-gestures)
-  - [C. Utility & Assistance Gestures](#c-utility--assistance-gestures)
-  - [Special Non-Action States](#special-non-action-states)
-- [8. Gesture Recognition Workflow](#8-gesture-recognition-workflow)
-- [9. System Architecture](#9-system-architecture)
-  - [Pipeline Flowchart](#pipeline-flowchart)
-  - [The 5-State One-Shot Finite State Machine](#the-5-state-one-shot-finite-state-machine)
-  - [Mathematical Feature Normalization](#mathematical-feature-normalization)
-- [10. Technology Stack](#10-technology-stack)
-- [11. Project Structure](#11-project-structure)
-- [12. Installation and Setup](#12-installation-and-setup)
-- [13. Running the Application](#13-running-the-application)
-- [14. Model Evaluation](#14-model-evaluation)
-- [15. Automated Testing & Verification](#15-automated-testing--verification)
-- [16. Configuration and Troubleshooting](#16-configuration-and-troubleshooting)
-- [17. Privacy and Responsible AI](#17-privacy-and-responsible-ai)
-- [18. Known Data Gaps & Integrity Disclosures](#18-known-data-gaps--integrity-disclosures)
-- [19. Official Sources & Credits](#19-official-sources--credits)
-- [20. License](#20-license)
-- [21. Acknowledgements](#21-acknowledgements)
-
----
-
 ## 1. Hero & Overview
 
 **GestureGo** is a touchless campus information kiosk that lets users navigate campus event schedules, venue directories, club stalls, and organizer contacts through hand gestures captured by a standard monocular webcam.
@@ -88,10 +51,8 @@ Built for university hackathons, student tech summits, and public digital signag
                      └──────────────────────────────────────────────┘
 ```
 
-> **Note on Interface Implementations:**
-> The repository includes two implementations:
-> 1. **React 19 / TypeScript Web Kiosk (`src/`):** The primary production client-side web application interface featuring live monocular webcam MediaPipe tracking, touchless schedule navigation with synchronized selection cursor, pass registration, verified graVITas ’26 Supabase integration, and responsive Swiss poster design.
-> 2. **Streamlit Python Kiosk (`app.py`):** Full-stack Python telemetry and algorithm lab dashboard featuring real-time telemetry, live gesture simulation, decision debugging, and baseline evaluation.
+> **Architecture & Implementation:**
+> GestureGo is built as a pure client-side **React 19 / TypeScript Web Kiosk (`src/`)** powered by **Vite**, in-browser **MediaPipe Tasks-Vision**, and **Supabase**. It runs locally at `http://localhost:3000` with zero backend server dependencies required for kiosk operation. Python modules in the root directory provide offline landmark dataset collection (`collect_data.py`), model training (`train_model.py`), and baseline evaluation benchmarks (`evaluate_model.py`).
 
 ---
 
@@ -450,18 +411,16 @@ Raw MediaPipe coordinates vary depending on how close the user stands to the cam
 
 | Layer | Component | Version / Specification | Role in GestureGo |
 | :--- | :--- | :--- | :--- |
-| **Language** | Python | 3.10 / 3.11 (tested on 3.12 for tests/core) | Core language for vision pipeline, FSM, and Streamlit dashboard |
-| **Language & Runtime** | TypeScript & Node.js | TypeScript 5.8+, Node.js 20+ | Type-safe web client, schema verification, and interaction test runner |
+| **Kiosk Application** | React & Vite | React 19, Vite 6, Tailwind CSS | Production touchless campus kiosk with synchronized schedule scrolling, event pass generator, and photo gallery |
+| **In-Browser Vision** | Google MediaPipe | `@mediapipe/tasks-vision>=1.1.1` | High-fidelity 21 3D hand landmark detection running in-browser at 30 FPS |
+| **Frontend Runtime** | TypeScript & Node.js | TypeScript 5.8+, Node.js 20+ | Type-safe web client, schema verification, and interaction test runner |
 | **Cloud Database** | Supabase PostgreSQL | `@supabase/supabase-js>=2.118.0` | Relational storage for venues, graVITas events, photos, and registrations with RLS |
 | **Object Storage** | Supabase Storage | `gravitas-event-photos` bucket | CDN-backed storage for official event posters and campus photography |
-| **Web Frontend** | React & Vite | React 19, Vite 6, Tailwind CSS | Touchless kiosk web client with Swiss poster design and offline fallback |
-| **Computer Vision** | OpenCV | `opencv-python>=4.9.0` | Video capture, frame flipping, rendering collection HUD |
-| **Landmark Tracking** | Google MediaPipe | `mediapipe>=0.10.14` | High-fidelity 21 3D hand landmark detection |
+| **ML & Dataset Tools** | Python & OpenCV | Python 3.10+, `opencv-python>=4.9.0` | Webcam landmark data collection and coordinate normalization |
 | **Machine Learning** | XGBoost | `xgboost>=2.0.0` | Primary multiclass gradient boosted decision tree classifier |
 | **Fallback ML** | Scikit-Learn | `scikit-learn>=1.4.0` | HistGradientBoosting fallback, LabelEncoder, metrics |
 | **Data Processing** | NumPy & Pandas | `numpy>=1.24.0`, `pandas>=2.1.0` | Matrix transformations, coordinate normalization, dataset I/O |
 | **Model Serialization**| Joblib | `joblib>=1.3.2` | Bundling trained estimators, encoders, and metadata |
-| **Kiosk Application** | Streamlit | `streamlit>=1.35.0` | Interactive touchless kiosk interface and telemetry monitor |
 | **Automated Testing** | Python Unittest & Node Test | Standard libraries | **74 unit tests** (38 Python + 36 TypeScript) verifying FSM, database, and UI |
 
 ---
@@ -523,7 +482,7 @@ gesturego---touchless-ai-campus-assistant/
 │   ├── test_schedule_interaction.test.mjs # 12 Node.js schedule interaction test scenarios
 │   ├── test_registration.test.mjs      # 12 Node.js pass generation and persistence tests
 │   └── test_supabase_gravitas.test.mjs # 12 Node.js Supabase schema, photo, and venue tests
-├── app.py                              # Streamlit kiosk application and decision telemetry
+├── app.py                              # Standalone Python telemetry & simulation experiment script
 ├── registration_db.py                  # Parameterized SQLite persistence layer for event passes
 ├── campus_data.py                      # Campus schedule, venues, stalls, contacts, and mappings
 ├── collect_data.py                     # Real-time webcam dataset collector via OpenCV
@@ -545,8 +504,8 @@ gesturego---touchless-ai-campus-assistant/
 
 - A computer running Windows 10/11, macOS, or Linux.
 - **Node.js 20+** and **npm** for the web client.
-- Python **3.10** or **3.11** for the Python kiosk and model pipeline.
 - An accessible monocular webcam (built-in laptop camera or standard USB webcam).
+- *(Optional)* Python **3.10** or **3.11** if capturing new landmark datasets or retraining XGBoost.
 
 ### A. Web Client Setup (React + Vite + Supabase)
 
@@ -563,24 +522,12 @@ cp .env.example .env
 # Edit .env with your VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY (optional)
 ```
 
-### B. Python Kiosk Setup (Streamlit + OpenCV + MediaPipe)
+### B. Python ML & Benchmark Setup (Optional — for model training & evaluation)
 
-#### Windows Setup (PowerShell)
-```powershell
-# Create and activate virtual environment
-py -3.11 -m venv .venv
-.\.venv\Scripts\Activate.ps1
-
-# Upgrade pip and install dependencies
-python -m pip install --upgrade pip
-pip install -r requirements.txt
-```
-
-#### Linux / macOS Setup (Bash / Zsh)
 ```bash
 # Create and activate virtual environment
-python3.11 -m venv .venv
-source .venv/bin/activate
+python -m venv .venv
+source .venv/bin/activate  # Or .\.venv\Scripts\Activate.ps1 on Windows
 
 # Upgrade pip and install dependencies
 python -m pip install --upgrade pip
@@ -591,30 +538,18 @@ pip install -r requirements.txt
 
 ## 13. Running the Application
 
-GestureGo supports two interface runtimes:
-
-### Option 1: Touchless Web Kiosk (React 19 + Supabase + Gallery)
-
-Run the fast client-side web kiosk:
+Launch the touchless campus assistant web kiosk:
 
 ```bash
 npm run dev
 ```
 
-1. Opens at `http://localhost:3000` (or `http://localhost:5173`).
-2. Displays verified **graVITas ’26** events, VIT Vellore campus venues, touchless photo gallery, and delegate pass registration.
-3. Automatically connects to Supabase if configured in `.env`, or seamlessly operates offline using verified in-memory seeds.
+1. Opens the application in your browser at `http://localhost:3000` (or `http://localhost:5173`).
+2. Ensure your browser grants webcam permission when prompted.
+3. Displays verified **graVITas ’26** events, VIT Vellore campus venues, touchless photo gallery, synchronized cursor navigation, and delegate pass registration.
+4. Operates seamlessly online with Supabase or offline using verified in-memory seeds.
 
-### Option 2: Python Kiosk (Streamlit + Live Telemetry Dashboard)
-
-Launch the Python kiosk:
-
-```bash
-streamlit run app.py
-```
-
-1. Opens at `http://localhost:8501`.
-2. Includes real-time sensor telemetry, candidate frame counters, and decision reasoning.
+*(Optional)* For the standalone Python telemetry experiment script: `python app.py`.
 
 ---
 
@@ -735,7 +670,7 @@ npx tsx --test tests/test_supabase_gravitas.test.mjs
 
 ### Key Configuration Parameters
 
-The state machine parameters can be configured directly in `GestureController` or tuned via the Streamlit sidebar:
+The state machine parameters can be configured directly in `gestureController.ts` or `gesture_controller.py`:
 
 | Parameter | Default | Range | Purpose |
 | :--- | :---: | :---: | :--- |
@@ -752,7 +687,7 @@ The state machine parameters can be configured directly in `GestureController` o
 | **"Could not open camera (index 0)"** | Webcam in use by another application or permissions blocked. | Close other apps using the camera (Zoom, Teams). On Windows, check *Settings ➔ Privacy & Security ➔ Camera*. |
 | **Model status shows "MediaPipe Kinematics Fallback"** | Model artifact `models/gesture_xgboost.joblib` has not been generated yet. | Run `python train_model.py` to train and serialize the XGBoost bundle, or continue using the kinematic fallback. |
 | **Supabase events not loading in browser** | Network disconnected or missing `.env` credentials. | Application automatically falls back to verified offline seed data (`src/gravitasData.ts`). Verify `VITE_SUPABASE_URL` in `.env`. |
-| **Gestures feel slow to respond** | `stability_duration_sec` or `required_stable_frames` is set too high. | Lower the sliders in the sidebar (e.g., set duration to `0.25s` and frames to `5`). |
+| **Gestures feel slow to respond** | `stability_duration_sec` or `required_stable_frames` is set too high. | Lower stability threshold values (e.g., set duration to `0.25s` and frames to `5`). |
 | **Accidental or jittery activations** | Confidence threshold is too lenient or ambient lighting is dim. | Increase `confidence_threshold` to `0.85` or `0.90` and improve frontal lighting. |
 | **Action not firing when holding hand** | Controller is in `LOCKED_HOLD` state from a previous action. | Lower your hand out of view for half a second to provide 3 neutral frames and re-arm to `READY`. |
 
@@ -796,6 +731,6 @@ The state machine parameters can be configured directly in `GestureController` o
 
 - **Google MediaPipe Team:** For the real-time on-device [MediaPipe Hands](https://developers.google.com/mediapipe/solutions/vision/hand_landmarker) landmark tracking solution.
 - **Supabase Team:** For the developer platform providing PostgreSQL, Storage, and Row Level Security.
-- **Streamlit Community:** For the rapid data application framework powering the kiosk dashboard.
+- **Vite & React Teams:** For the modern frontend application engine powering the touchless kiosk.
 - **OpenCV Team:** For cross-platform computer vision and camera streaming primitives.
 - **XGBoost & Scikit-Learn Contributors:** For gradient boosting algorithms and machine learning toolkits.
