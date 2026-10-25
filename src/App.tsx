@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
-import { GestureClass, KioskAction, ControllerTelemetry, ScheduleItem, EventRegistration } from './types';
+import { GestureClass, KioskAction, ControllerTelemetry, ScheduleItem, EventRegistration, GravitasEvent } from './types';
 import { GestureControllerTS } from './gestureController';
 import {
   GESTURE_DEFINITIONS,
@@ -9,8 +9,9 @@ import {
   getPrevPage,
 } from './campusData';
 import { VERIFIED_GRAVITAS_EVENTS } from './gravitasData';
-import { loadRegistrations, createOrGetRegistration } from './registrationStore';
+import { loadRegistrations, createOrGetRegistration, saveRegistrations } from './registrationStore';
 import { gravitasService } from './gravitasService';
+import { isSupabaseConfigured } from './supabaseClient';
 import { Navbar } from './components/Navbar';
 import { ManualControls } from './components/ManualControls';
 import { CameraSensor } from './components/CameraSensor';
@@ -65,6 +66,70 @@ export default function App() {
 
   // Scroll Container Ref for the active content viewport
   const contentScrollRef = useRef<HTMLDivElement>(null);
+
+  // Unified registration handler: local persistence + Supabase cloud sync
+  const registerForEvent = useCallback(
+    async (item: GravitasEvent | ScheduleItem) => {
+      const res = createOrGetRegistration(item);
+      setRegistrations(loadRegistrations());
+      setActivePassModal({ registration: res.registration, isNew: res.isNew });
+
+      if (res.isNew && item.id) {
+        try {
+          const synced = await gravitasService.recordRegistration(item.id, res.registration.registrationCode);
+          if (!synced) {
+            console.warn(
+              '[GestureGo] Local pass generated, but Supabase cloud sync did not complete. Ensure your VITE_SUPABASE_ANON_KEY in .env is the valid JWT anon key and setup_all.sql has been run in Supabase.'
+            );
+          }
+        } catch (err) {
+          console.error('[GestureGo] Failed to sync registration with Supabase:', err);
+        }
+      }
+    },
+    []
+  );
+
+  // Synchronize remote Supabase registrations with local passes on mount
+  useEffect(() => {
+    async function syncRemoteRegistrations() {
+      if (!isSupabaseConfigured()) return;
+      try {
+        const remoteRegistrations = await gravitasService.getRegistrations();
+        if (remoteRegistrations && remoteRegistrations.length > 0) {
+          const currentLocal = loadRegistrations();
+          const existingCodes = new Set(currentLocal.map((r) => r.registrationCode));
+          const existingEventIds = new Set(currentLocal.map((r) => r.eventId));
+          let hasNew = false;
+
+          for (const item of remoteRegistrations) {
+            if (!existingCodes.has(item.registration_code) && !existingEventIds.has(item.event_id)) {
+              currentLocal.push({
+                registrationId: item.id,
+                registrationCode: item.registration_code,
+                eventId: item.event_id,
+                eventNameSnapshot: item.event?.name || 'graVITas Event',
+                eventDate: item.event?.start_date || 'September 18–20, 2026',
+                eventTime: item.event?.start_time || '09:00:00',
+                venue: item.event?.venue?.name || 'VIT Vellore',
+                registrationStatus: 'CONFIRMED',
+                registeredAt: item.created_at || new Date().toISOString(),
+              });
+              hasNew = true;
+            }
+          }
+
+          if (hasNew) {
+            saveRegistrations(currentLocal);
+            setRegistrations([...currentLocal]);
+          }
+        }
+      } catch (err) {
+        console.warn('[App] Remote registrations sync skipped:', err);
+      }
+    }
+    syncRemoteRegistrations();
+  }, []);
 
   // Feedback Toasts
   const [actionToast, setActionToast] = useState<{
@@ -199,12 +264,7 @@ export default function App() {
               VERIFIED_GRAVITAS_EVENTS.find(
                 (it) => it.id === selectedScheduleId || it.slug === selectedScheduleId
               ) || VERIFIED_GRAVITAS_EVENTS[0];
-            const result = createOrGetRegistration(activeItem);
-            setRegistrations(loadRegistrations());
-            setActivePassModal({ registration: result.registration, isNew: result.isNew });
-            if (result.isNew && activeItem.id) {
-              gravitasService.recordRegistration(activeItem.id, result.registration.registrationCode).catch(() => {});
-            }
+            registerForEvent(activeItem);
           } else {
             setCurrentPage('Schedule');
             setNavHistory((prev) => [...prev, 'Schedule']);
@@ -482,14 +542,7 @@ export default function App() {
                   registrations={registrations}
                   lastAction={actionToast?.action}
                   actionTimestamp={actionToast?.timestamp}
-                  onRegister={(item) => {
-                    const res = createOrGetRegistration(item);
-                    setRegistrations(loadRegistrations());
-                    setActivePassModal({ registration: res.registration, isNew: res.isNew });
-                    if (res.isNew && item.id) {
-                      gravitasService.recordRegistration(item.id, res.registration.registrationCode).catch(() => {});
-                    }
-                  }}
+                  onRegister={registerForEvent}
                   onViewPass={(reg) => {
                     setActivePassModal({ registration: reg, isNew: false });
                   }}

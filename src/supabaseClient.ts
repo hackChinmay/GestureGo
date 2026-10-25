@@ -14,6 +14,12 @@ function getEnvVar(key: string): string | undefined {
 const supabaseUrl = getEnvVar('VITE_SUPABASE_URL');
 const supabaseAnonKey = getEnvVar('VITE_SUPABASE_ANON_KEY') || getEnvVar('VITE_SUPABASE_PUBLISHABLE_KEY');
 
+if (typeof window !== 'undefined' && supabaseAnonKey?.startsWith('sb_publishable_')) {
+  console.warn(
+    '[SupabaseClient] Warning: Detected "sb_publishable_..." key. Standard Supabase PostgREST endpoints require the JWT anon key (starts with "eyJ..."). If requests fail with 401/Invalid API Key, update VITE_SUPABASE_ANON_KEY in .env with the anon public key from Supabase Dashboard -> Project Settings -> API.'
+  );
+}
+
 export const isSupabaseConfigured = (): boolean => {
   return Boolean(
     supabaseUrl &&

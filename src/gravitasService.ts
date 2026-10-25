@@ -161,16 +161,55 @@ export const gravitasService = {
   async recordRegistration(eventId: string, registrationCode: string): Promise<boolean> {
     if (isSupabaseConfigured() && supabase) {
       try {
-        const { error } = await supabase.from('event_registrations').insert({
+        const { data, error } = await supabase.from('event_registrations').insert({
           event_id: eventId,
           registration_code: registrationCode,
           status: 'CONFIRMED',
-        });
-        if (!error) return true;
+        }).select();
+        
+        if (!error) {
+          console.log('[GravitasService] Successfully synced registration to Supabase:', data);
+          return true;
+        }
+
+        console.error(
+          '[GravitasService] Supabase registration insert failed:',
+          error.message,
+          error.details || error.hint || ''
+        );
       } catch (err) {
-        console.warn('[GravitasService] Supabase registration insert failed:', err);
+        console.error('[GravitasService] Supabase registration insert exception:', err);
       }
+    } else {
+      console.warn('[GravitasService] Supabase is not configured or client is null.');
     }
     return false;
+  },
+
+  /**
+   * Fetches registrations recorded in Supabase.
+   */
+  async getRegistrations(): Promise<any[]> {
+    if (isSupabaseConfigured() && supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('event_registrations')
+          .select(`
+            *,
+            event:events(id, name, start_date, start_time, venue:venues(name))
+          `)
+          .order('created_at', { ascending: false });
+
+        if (!error && data) {
+          return data;
+        }
+        if (error) {
+          console.error('[GravitasService] Supabase fetch registrations failed:', error.message);
+        }
+      } catch (err) {
+        console.error('[GravitasService] Supabase fetch registrations exception:', err);
+      }
+    }
+    return [];
   },
 };
