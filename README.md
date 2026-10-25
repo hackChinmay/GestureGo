@@ -4,8 +4,10 @@
 
 [![Unit Tests](https://img.shields.io/badge/Unit%20Tests-74%2F74%20Passing-22C55E?logo=checkmarx&logoColor=white)](tests/)
 [![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL%20%7C%20Storage-3ECF8E?logo=supabase&logoColor=white)](supabase/)
-[![Python](https://img.shields.io/badge/Python-3.10%20%7C%203.11-3776AB?logo=python&logoColor=white)](requirements.txt)
 [![React](https://img.shields.io/badge/React-19.0+-61DAFB?logo=react&logoColor=black)](package.json)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.8+-3178C6?logo=typescript&logoColor=white)](package.json)
+[![Vite](https://img.shields.io/badge/Vite-6.0+-646CFF?logo=vite&logoColor=white)](package.json)
+[![Python](https://img.shields.io/badge/Python-3.10%20%7C%203.11-3776AB?logo=python&logoColor=white)](requirements.txt)
 [![MediaPipe](https://img.shields.io/badge/MediaPipe-0.10.14-0078D4?logo=google&logoColor=white)](requirements.txt)
 [![XGBoost](https://img.shields.io/badge/XGBoost-2.0+-EB5424)](requirements.txt)
 [![License](https://img.shields.io/badge/License-Unspecified-lightgrey)](#license)
@@ -88,8 +90,8 @@ Built for university hackathons, student tech summits, and public digital signag
 
 > **Note on Interface Implementations:**
 > The repository includes two implementations:
-> 1. **Streamlit Python Kiosk (`app.py`):** The primary full-stack demonstration dashboard featuring real-time telemetry, live gesture simulation, decision debugging, and Swiss editorial styling.
-> 2. **React 19 / TypeScript Web Client (`src/`):** A client-side web application interface configured for modern web deployment.
+> 1. **React 19 / TypeScript Web Kiosk (`src/`):** The primary production client-side web application interface featuring live monocular webcam MediaPipe tracking, touchless schedule navigation with synchronized selection cursor, pass registration, verified graVITas ’26 Supabase integration, and responsive Swiss poster design.
+> 2. **Streamlit Python Kiosk (`app.py`):** Full-stack Python telemetry and algorithm lab dashboard featuring real-time telemetry, live gesture simulation, decision debugging, and baseline evaluation.
 
 ---
 
@@ -120,11 +122,14 @@ GestureGo combines geometric coordinate invariance, a hybrid machine-learning an
 
 ## 4. Key Features
 
-- **Zero-Touch Navigation:** Full access to event schedules, campus venues, interactive stalls, emergency contacts, and help screens.
+- **Zero-Touch Navigation:** Full access to event schedules, campus venues, photo galleries, interactive stalls, emergency contacts, and help screens across 7 ordered pages.
+- **Verified graVITas ’26 & VIT Vellore Campus Grounding:** 100% grounded in official festival records from VIT Vellore. Completed events are truthfully flagged with past status; free or unannounced entry fees are recorded as `NULL`.
+- **Supabase Cloud Database & Storage Integration:** Real-time event catalog, campus venue mapping, and photo gallery linked to Supabase PostgreSQL with Row Level Security (RLS) and CDN-backed storage (`gravitas-event-photos`).
+- **Synchronized Event Selection Cursor:** On the Schedule page, `POINTING_DOWN` simultaneously advances the active selection cursor and smoothly scrolls the container so the selected card stays in view, preventing out-of-sync navigation.
 - **Gesture Event Registration & Pass Generation:** Select any event in the Schedule with `POINTING_DOWN` and confirm with `THUMBS_UP` to instantly generate an official delegate pass with a unique collision-free code (`GG-XXXXXXXX`, Crockford 32-character alphabet).
-- **Persistent Local Storage & SQLite Database:** Registrations are saved in browser `localStorage` on the web client and an isolated SQLite table (`registration_db.py`) in the Python kiosk. Duplicate registrations for the same event safely retrieve the existing pass code.
 - **Digital Registration Pass Modal:** High-visibility Swiss poster pass dialog presenting event metadata, unique pass code, copy-to-clipboard functionality, raw text download, and an SVG QR code for touchless kiosk check-in.
 - **Dedicated "My Registrations" View:** In-place sub-navigation tab inside the Schedule section allowing attendees to browse and copy all their registered event passes without altering the 7-page route hierarchy.
+- **Touchless Photo Gallery & Lightbox:** Browse official festival posters and campus photo assets with category filters and high-resolution lightbox view.
 - **Invariant Geometric Features:** 63-element feature vector derived from 21 MediaPipe $(x, y, z)$ coordinates, normalized for distance and position.
 - **Transparent Backend Telemetry:** The interface explicitly reveals whether `CUSTOM_XGBOOST` or `MEDIAPIPE_BUILTIN` kinematic heuristics is executing; it never fabricates an active model state.
 - **Configurable Thresholds:** Adjust confidence thresholds, required stable frames, stability duration, and neutral release frames in real time from the sidebar.
