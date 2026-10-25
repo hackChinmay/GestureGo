@@ -131,7 +131,7 @@ export default function App() {
     ) => {
       // If registration pass modal is open, gestures must NOT trigger background page changes!
       if (activePassModal) {
-        if (action === 'CANCEL' || action === 'CONFIRM_OR_SELECT') {
+        if (action === 'CANCEL' || action === 'BACK' || action === 'CONFIRM_OR_SELECT') {
           setActivePassModal(null);
           setActionToast({ action, gesture, source, timestamp: Date.now() });
           setTimeout(() => {

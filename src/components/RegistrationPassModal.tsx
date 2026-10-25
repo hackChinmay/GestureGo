@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { EventRegistration } from '../types';
 import { copyToClipboard, downloadPassFile } from '../registrationStore';
 import {
@@ -104,6 +104,18 @@ export const RegistrationPassModal: React.FC<RegistrationPassModalProps> = ({
 }) => {
   const [copied, setCopied] = useState<boolean>(false);
 
+  // Close on Escape key
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen || !registration) return null;
 
   const handleCopy = async () => {
@@ -119,9 +131,13 @@ export const RegistrationPassModal: React.FC<RegistrationPassModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/60 backdrop-blur-xs animate-fade-in">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/60 backdrop-blur-xs animate-fade-in cursor-pointer"
+      onClick={onClose}
+      title="Click outside to close"
+    >
       <div
-        className="w-full max-w-lg bg-[#FFF7E8] border-3 border-[#17151B] rounded-xl ink-shadow overflow-hidden flex flex-col max-h-[90vh]"
+        className="w-full max-w-lg bg-[#FFF7E8] border-3 border-[#17151B] rounded-xl ink-shadow overflow-hidden flex flex-col max-h-[90vh] cursor-default"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal Top Header */}
@@ -139,11 +155,25 @@ export const RegistrationPassModal: React.FC<RegistrationPassModalProps> = ({
           </div>
           <button
             onClick={onClose}
-            className="p-1 rounded-md text-slate-300 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
-            title="Close modal"
+            className="px-2.5 py-1 rounded bg-[#FF7048] hover:bg-[#ff5722] text-[#17151B] border-2 border-[#17151B] font-black text-xs transition-transform active:scale-95 flex items-center gap-1 cursor-pointer ink-shadow-sm"
+            title="Close modal (Esc, 👎, ✊, or click)"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4 stroke-[3]" />
+            <span>Close</span>
           </button>
+        </div>
+
+        {/* Touchless Gesture & Keyboard Hint Bar */}
+        <div className="bg-[#FFF7E8] border-b-2 border-[#17151B] px-3.5 py-1.5 flex items-center justify-between text-[11px] font-mono text-[#17151B]">
+          <span className="flex items-center gap-1.5 font-bold">
+            <span className="text-[#FF7048]">Touchless Close:</span>
+            <span className="bg-white px-1.5 py-0.5 rounded border border-[#17151B]">👎 Thumbs Down</span>
+            <span>or</span>
+            <span className="bg-white px-1.5 py-0.5 rounded border border-[#17151B]">✊ Closed Fist</span>
+          </span>
+          <span className="text-[10px] text-[#655E68] hidden sm:inline font-sans font-semibold">
+            Press <kbd className="px-1 py-0.5 bg-white border border-[#17151B] rounded text-[9px]">Esc</kbd> or click outside
+          </span>
         </div>
 
         {/* Feedback Alert Banner */}
@@ -261,9 +291,10 @@ export const RegistrationPassModal: React.FC<RegistrationPassModalProps> = ({
 
           <button
             onClick={onClose}
-            className="px-4 py-1.5 rounded bg-[#17151B] hover:bg-slate-800 text-white font-black text-xs transition-colors cursor-pointer border-2 border-[#17151B]"
+            className="px-4 py-2 rounded bg-[#17151B] hover:bg-[#FF7048] hover:text-[#17151B] text-white font-black text-xs transition-colors cursor-pointer border-2 border-[#17151B] ink-shadow-sm flex items-center gap-1.5"
           >
-            Close Pass
+            <X className="w-4 h-4 stroke-[3]" />
+            <span>Close Pass (or 👎)</span>
           </button>
         </div>
       </div>
