@@ -2,6 +2,8 @@
 
 > A touchless campus information kiosk driven by confidence-aware computer vision, temporal stability checks, and one-shot finite state machine execution.
 
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-Online-00C853?logo=googlechrome&logoColor=white)](https://0c3hcgfl-3000.inc1.devtunnels.ms/)
+[![Demo Video](https://img.shields.io/badge/Demo%20Video-Google%20Drive-4285F4?logo=googledrive&logoColor=white)](https://drive.google.com/file/d/1cIoF7D9nlJXVPNUfJdi1VbLKXwwEw4nd/view?usp=sharing)
 [![Unit Tests](https://img.shields.io/badge/Unit%20Tests-74%2F74%20Passing-22C55E?logo=checkmarx&logoColor=white)](tests/)
 [![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL%20%7C%20Storage-3ECF8E?logo=supabase&logoColor=white)](supabase/)
 [![React](https://img.shields.io/badge/React-19.0+-61DAFB?logo=react&logoColor=black)](package.json)
@@ -11,6 +13,9 @@
 [![MediaPipe](https://img.shields.io/badge/MediaPipe-0.10.14-0078D4?logo=google&logoColor=white)](requirements.txt)
 [![XGBoost](https://img.shields.io/badge/XGBoost-2.0+-EB5424)](requirements.txt)
 [![License](https://img.shields.io/badge/License-Unspecified-lightgrey)](#license)
+
+> 🚀 **Live Deployed Kiosk:** [https://0c3hcgfl-3000.inc1.devtunnels.ms/](https://0c3hcgfl-3000.inc1.devtunnels.ms/)  
+> 🎥 **Demo Video Walkthrough:** [https://drive.google.com/file/d/1cIoF7D9nlJXVPNUfJdi1VbLKXwwEw4nd/view?usp=sharing](https://drive.google.com/file/d/1cIoF7D9nlJXVPNUfJdi1VbLKXwwEw4nd/view?usp=sharing)
 
 ---
 
@@ -52,7 +57,7 @@ Built for university hackathons, student tech summits, and public digital signag
 ```
 
 > **Architecture & Implementation:**
-> GestureGo is built as a pure client-side **React 19 / TypeScript Web Kiosk (`src/`)** powered by **Vite**, in-browser **MediaPipe Tasks-Vision**, and **Supabase**. It runs locally at `http://localhost:3000` with zero backend server dependencies required for kiosk operation. Python modules in the root directory provide offline landmark dataset collection (`collect_data.py`), model training (`train_model.py`), and baseline evaluation benchmarks (`evaluate_model.py`).
+> GestureGo is built as a pure client-side **React 19 / TypeScript Web Kiosk (`src/`)** powered by **Vite**, in-browser **MediaPipe Tasks-Vision**, and **Supabase**. It is deployed live at **[https://0c3hcgfl-3000.inc1.devtunnels.ms/](https://0c3hcgfl-3000.inc1.devtunnels.ms/)**, or can run locally at `http://localhost:3000` with zero backend server dependencies required for kiosk operation. Python modules in the root directory provide offline landmark dataset collection (`collect_data.py`), model training (`train_model.py`), and baseline evaluation benchmarks (`evaluate_model.py`).
 
 ---
 
@@ -69,6 +74,10 @@ However, naive vision-based gesture controls introduce three severe engineering 
 ---
 
 ## 3. Our Solution
+
+> ### 🔗 Live Demonstration & Deployment
+> - 🌐 **Deployed Application URL:** [https://0c3hcgfl-3000.inc1.devtunnels.ms/](https://0c3hcgfl-3000.inc1.devtunnels.ms/)
+> - 🎥 **Demo Video Walkthrough:** [https://drive.google.com/file/d/1cIoF7D9nlJXVPNUfJdi1VbLKXwwEw4nd/view?usp=sharing](https://drive.google.com/file/d/1cIoF7D9nlJXVPNUfJdi1VbLKXwwEw4nd/view?usp=sharing)
 
 GestureGo combines geometric coordinate invariance, a hybrid machine-learning and kinematic classification layer, and an explicit finite state machine:
 
@@ -538,7 +547,14 @@ pip install -r requirements.txt
 
 ## 13. Running the Application
 
-Launch the touchless campus assistant web kiosk:
+### A. Live Deployed Kiosk & Demo Video
+Access the running kiosk directly in your browser or watch the full video walkthrough:
+- **Deployed Kiosk URL:** [https://0c3hcgfl-3000.inc1.devtunnels.ms/](https://0c3hcgfl-3000.inc1.devtunnels.ms/)
+- **Demo Video Walkthrough:** [https://drive.google.com/file/d/1cIoF7D9nlJXVPNUfJdi1VbLKXwwEw4nd/view?usp=sharing](https://drive.google.com/file/d/1cIoF7D9nlJXVPNUfJdi1VbLKXwwEw4nd/view?usp=sharing)
+- *Note:* When opening the live kiosk, allow camera access when prompted by the browser so MediaPipe can detect hand gestures in real time.
+
+### B. Local Development
+Launch the touchless campus assistant web kiosk locally:
 
 ```bash
 npm run dev
