@@ -14,7 +14,6 @@
 [![XGBoost](https://img.shields.io/badge/XGBoost-2.0+-EB5424)](requirements.txt)
 [![License](https://img.shields.io/badge/License-Unspecified-lightgrey)](#license)
 
-> 🚀 **Live Deployed Kiosk:** [https://0c3hcgfl-3000.inc1.devtunnels.ms/](https://0c3hcgfl-3000.inc1.devtunnels.ms/)  
 > 🎥 **Demo Video Walkthrough:** [https://drive.google.com/file/d/1cIoF7D9nlJXVPNUfJdi1VbLKXwwEw4nd/view?usp=sharing](https://drive.google.com/file/d/1cIoF7D9nlJXVPNUfJdi1VbLKXwwEw4nd/view?usp=sharing)
 
 ---
